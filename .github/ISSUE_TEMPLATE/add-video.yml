@@ -448,7 +448,7 @@ body:
     id: urls
     attributes:
       label: "유튜브 링크"
-      description: "한 줄에 하나씩 붙여 넣으세요. 모두 같은 재생목록에 추가됩니다."
+      description: "한 줄에 하나씩 붙여 넣으세요. 날짜가 다르면 링크 뒤에 적으세요. 예: https://youtu.be/abc 2024-05-01"
       placeholder: "https://youtu.be/..."
     validations:
       required: true
@@ -456,12 +456,12 @@ body:
     id: date
     attributes:
       label: "날짜"
-      description: "예: 2026-11-05. 비워 두면 오늘 날짜(한국 시간)로 저장됩니다."
+      description: "링크 뒤에 날짜가 없는 영상에 쓰입니다. 예: 2026-11-05. 비워 두면 오늘 날짜(한국 시간)."
   - type: input
     id: title
     attributes:
       label: "제목 (선택)"
-      description: "비워 두면 유튜브 제목을 그대로 씁니다. 링크가 1개일 때만 적용됩니다."
+      description: "비워 두면 유튜브 제목을 그대로 씁니다. 영상이 1개일 때만 적용됩니다."
   - type: input
     id: channel
     attributes:
@@ -471,7 +471,7 @@ body:
     id: member
     attributes:
       label: "멤버 (선택)"
-      description: "멤버 솔로 영상이면 선택하세요."
+      description: "멤버 솔로 영상이면 선택하세요. 모든 링크에 적용됩니다."
       options:
         - "없음"
         - "해원 (HAEWON)"
