@@ -1,0 +1,66 @@
+name: 새 영상 추가
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: add-video-${{ github.event.issue.number }}
+
+jobs:
+  add:
+    if: >-
+      github.event.issue.state == 'open' &&
+      contains(github.event.issue.body, '### 재생목록') &&
+      contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association)
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      ISSUE: ${{ github.event.issue.number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: add
+        env:
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: python3 scripts/add_video.py add
+
+      - name: Commit and push
+        env:
+          MESSAGE: ${{ steps.add.outputs.commit_message }}
+          FILE: ${{ steps.add.outputs.file }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "$FILE"
+          git commit -m "$MESSAGE" -m "Issue #$ISSUE"
+          for attempt in 1 2 3; do
+            git pull --rebase && git push && exit 0
+            sleep 5
+          done
+          exit 1
+
+      - name: Report success
+        env:
+          SUMMARY: ${{ steps.add.outputs.summary }}
+          COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit
+        run: |
+          printf '%s\n\n커밋: %s/%s\n사이트에는 몇 분 안에 반영됩니다.\n' \
+            "$SUMMARY" "$COMMIT_URL" "$(git rev-parse HEAD)" > comment.md
+          gh issue comment "$ISSUE" --body-file comment.md
+          gh issue close "$ISSUE" --reason completed
+
+      - name: Report failure
+        if: failure()
+        env:
+          ERROR: ${{ steps.add.outputs.error }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          printf '%s\n\n실행 기록: %s\n' \
+            "${ERROR:-❌ 처리 중 오류가 발생했습니다. 저장소 관리자에게 알려 주세요.}" "$RUN_URL" > comment.md
+          gh issue comment "$ISSUE" --body-file comment.md
