@@ -1,0 +1,12 @@
+const ALBUMS = [
+  { name: "Strange Muse", date: "2026-10-19" },
+  { name: "Heavy Serenade", date: "2026-05-11" },
+  { name: "Blue Valentine", date: "2025-10-13" },
+  { name: "Fe3O4: FORWARD", date: "2025-03-17" },
+  { name: "Fe3O4: STICK OUT", date: "2024-08-19" },
+  { name: "Fe3O4: BREAK", date: "2024-01-15" },
+  { name: "A Midsummer NMIXX's Dream", date: "2023-07-11" },
+  { name: "expérgo", date: "2023-03-20" },
+  { name: "ENTWURF", date: "2022-09-19" },
+  { name: "AD MARE", date: "2022-02-22" },
+];
