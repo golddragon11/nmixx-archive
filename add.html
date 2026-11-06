@@ -118,8 +118,6 @@
     <div class="fields">
       <fieldset id="memberBox" hidden><label for="v-member"><span data-t="member"></span><span class="hint" data-t="memberHint"></span></label>
         <select id="v-member"></select></fieldset>
-      <fieldset id="eraBox" hidden><label for="v-era"><span data-t="era"></span><span class="hint" data-t="eraHint"></span></label>
-        <select id="v-era"></select></fieldset>
       <fieldset><label for="v-date"><span data-t="date"></span><span class="hint" data-t="dateHint"></span></label>
         <input id="v-date" type="text" placeholder="2026-11-05"></fieldset>
     </div>
@@ -187,7 +185,6 @@ const TEXT = {
     channelTv: "필수 — 방송사 (예: KBS 2TV, MBC, tvN)", channelYt: "비우면 첫 영상의 유튜브 채널", channelAuto: "비우면 NMIXX",
     descHint: "선택 — 보통 라이브 재생목록에만. 쓴 그대로 모든 언어에서 보입니다",
     needChannel: "방송사를 채널 칸에 써 주세요", needYear: "연도를 4자리로 써 주세요 (예: 2027)",
-    era: "활동 시기", eraHint: "발매 전 티저는 다음 앨범을 고르세요.",
     date: "모든 링크에 같은 날짜", dateHint: "선택 — 비우면 유튜브·틱톡은 자동, 다른 출처는 링크마다 날짜",
     channel: "채널", autoHint: "비우면 자동",
     vertical: "세로 영상 (쇼츠)", kind: "종류", playlistTitle: "재생목록 제목", desc: "설명", optional: "선택",
@@ -200,12 +197,11 @@ const TEXT = {
     linksToFix: (n) => `링크 ${n}개를 고쳐야 합니다`, more: (n) => `+${n}`,
     unsupported: "지원하지 않는 링크", invalidDate: (d) => `없는 날짜: ${d}`,
     wrongSource: (s) => `${s} 영상은 이 재생목록에 넣을 수 없음`, twice: "같은 영상이 두 번",
-    inPlaylist: "이미 이 재생목록에 있음", tiktokListed: "이미 등록된 틱톡",
+    inPlaylist: "이미 이 재생목록에 있음",
     existing: "이미 있는 영상 — 저장된 제목·날짜를 그대로 씀", needTitle: "제목 필요 ( | 제목 )",
     needDate: "날짜 필요 ( | 2026-11-04 )", autoDate: "날짜는 자동", ytAuto: "제목·날짜는 유튜브에서 자동",
     needThumb: "썸네일 필요 (이미지나 유튜브 링크)", tvingThumb: "썸네일은 자동으로 가져옴",
     shortTiktok: "짧은 틱톡 링크 — 봇이 확인",
-    standalonePrefix: "틱톡",
   },
   en: {
     heading: "Add videos", tabVideo: "Add videos", tabPlaylist: "New playlist",
@@ -229,7 +225,6 @@ const TEXT = {
     channelTv: "Required — the broadcaster (e.g. KBS 2TV, MBC, tvN)", channelYt: "Blank = the first video's YouTube channel", channelAuto: "Blank = NMIXX",
     descHint: "Optional — usually only for live playlists. Shown as written in every language",
     needChannel: "Type the broadcaster in Channel", needYear: "Write the year as 4 digits (e.g. 2027)",
-    era: "Era", eraHint: "For pre-release teasers pick the upcoming album.",
     date: "Same date for all links", dateHint: "Optional — blank = automatic for YouTube and TikTok; other sources need a date per line",
     channel: "Channel", autoHint: "Blank = automatic",
     vertical: "Vertical video (Shorts)", kind: "Kind", playlistTitle: "Playlist title", desc: "Description", optional: "Optional",
@@ -242,12 +237,11 @@ const TEXT = {
     linksToFix: (n) => `${n} link(s) need fixing`, more: (n) => `+${n}`,
     unsupported: "Unsupported link", invalidDate: (d) => `Invalid date: ${d}`,
     wrongSource: (s) => `${s} videos cannot go into this playlist`, twice: "Listed twice",
-    inPlaylist: "Already in this playlist", tiktokListed: "TikTok already listed",
+    inPlaylist: "Already in this playlist",
     existing: "Existing video — its stored title and date are reused", needTitle: "Title required ( | title )",
     needDate: "Date required ( | 2026-11-04 )", autoDate: "Date automatic", ytAuto: "Title and date from YouTube",
     needThumb: "Thumbnail required (image or YouTube link)", tvingThumb: "Thumbnail fetched automatically",
     shortTiktok: "Short TikTok link — the bot resolves it",
-    standalonePrefix: "TikTok",
   },
 };
 const LANG_KEY = "nmixx-lang";  // shared with the main page
@@ -265,7 +259,6 @@ function applyLanguage() {
   document.querySelectorAll("[data-t-ph]").forEach((el) => { el.placeholder = t(el.dataset.tPh); });
   fill($("v-member"), F.memberChoices);
   fill($("p-member"), F.memberChoices);
-  fill($("v-era"), F.eraChoices);
   fill($("p-kind"), F.kindChoices);
   if (target) pick(target);
   search();
@@ -282,7 +275,6 @@ function fill(select, choices) {
   if (keep) select.value = keep;
 }
 function targetName(tg) {
-  if (tg.id === F.standalone) return `[${t("standalonePrefix")}] ${F.standaloneTitle[lang]}`;
   const era = tg.era ? " · " + (F.eraChoices.find((c) => c.value === tg.era) || { [lang]: tg.era })[lang] : "";
   return `[${(F.kindLabels[tg.kind] || { [lang]: tg.kind })[lang]}] ${tg.title}${era}`;
 }
@@ -330,14 +322,13 @@ function pick(tg) {
   $("pickedId").textContent = tg.id;
   $("pickedBox").hidden = false;
   $("searchBox").hidden = true;
-  $("eraBox").hidden = tg.id !== F.standalone;
   $("memberBox").hidden = !tg.needsMember;
   update();
 }
 $("q").addEventListener("input", search);
 $("unpick").onclick = () => {
   target = null;
-  $("pickedBox").hidden = true; $("searchBox").hidden = false; $("eraBox").hidden = true; $("memberBox").hidden = true;
+  $("pickedBox").hidden = true; $("searchBox").hidden = false; $("memberBox").hidden = true;
   $("q").focus(); update();
 };
 
@@ -359,7 +350,7 @@ function identify(link) {
   if ((m = link.match(re.fans))) return { source: "fans", id: m[1] };
   return null;
 }
-function checkLinks(text, { allowed, inTarget, standaloneTarget, formDate }) {
+function checkLinks(text, { allowed, inTarget, formDate }) {
   const seen = new Set();
   return text.split("\n").map((l) => l.trim()).filter(Boolean).map((line) => {
     const parts = line.split("|").map((p) => p.trim());
@@ -381,7 +372,7 @@ function checkLinks(text, { allowed, inTarget, standaloneTarget, formDate }) {
     if (!allowed.includes(v.source)) bad(t("wrongSource", name));
     if (v.id && seen.has(v.id)) bad(t("twice"));
     if (v.id) seen.add(v.id);
-    if (v.id && inTarget.has(v.id)) bad(t(standaloneTarget ? "tiktokListed" : "inPlaylist"));
+    if (v.id && inTarget.has(v.id)) bad(t("inPlaylist"));
     if (v.id && allIds.has(v.id)) warn(t("existing"));
     else {
       if (F.needsTitle.includes(v.source) && !title) bad(t("needTitle"));
@@ -417,21 +408,19 @@ function build() {
     const solo = !!(target && target.needsMember);
     const member = solo ? $("v-member").value : noMember;
     if (solo && member === noMember) problems.push(t("pickMember"));
-    const kind = !target ? "playlist" : target.id === F.standalone ? F.standalone
-      : [F.series, F.fansKind].includes(target.kind) ? target.kind : "playlist";
+    const kind = target && F.allowed[target.kind] ? target.kind : "playlist";
     results = checkLinks(links, {
-      allowed: F.allowed[kind], standaloneTarget: kind === F.standalone,
+      allowed: F.allowed[kind],
       inTarget: new Set(target ? target.v.map((i) => F.videoIds[i]) : []),
       formDate: realDate($("v-date").value),
     });
     showChecks($("v-checks"), results);
     const date = $("v-date").value.trim();
     if (date && !realDate(date)) problems.push(t("badDateField"));
-    title = F.issueTitle.video + (target ? (target.title || F.standaloneTitle.ko) : "") + (count > 1 ? ` (+${count})` : "");
+    title = F.issueTitle.video + (target ? target.title : "") + (count > 1 ? ` (+${count})` : "");
     body = [
       section(L.target, target && target.label), section(L.links, links), section(L.date, date),
       section(L.member, member),
-      section(L.era, target && target.id === F.standalone ? $("v-era").value : ""),
       `### ${L.options}\n\n- [${$("v-vertical").checked ? "x" : " "}] ${F.vertical}\n`,
     ].join("\n");
   } else {
@@ -451,7 +440,7 @@ function build() {
     else if (choice.title === "year" && !/^\d{4}$/.test($("p-title").value.trim())) problems.push(t("needYear"));
     if (choice.channel === "required" && !special && !$("p-channel").value.trim()) problems.push(t("needChannel"));
     if (!links.trim()) problems.push(t("addLink"));
-    results = checkLinks(links, { allowed: fans ? F.allowed[F.fansKind] : F.allowed.playlist, standaloneTarget: false,
+    results = checkLinks(links, { allowed: fans ? F.allowed[F.fansKind] : F.allowed.playlist,
                                   inTarget: new Set(), formDate: realDate($("p-date").value) });
     showChecks($("p-checks"), results);
     const date = $("p-date").value.trim();

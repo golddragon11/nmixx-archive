@@ -43,7 +43,6 @@ def _site_labels():
 
 
 KIND_LABELS = _site_labels()  # exactly what the site shows, read from index.html
-STANDALONE = "tiktok-standalone"
 # kind -> (id prefix, default channel: None = the first video's YouTube channel, "" = must be typed)
 NEW_PLAYLIST_KINDS = {
     "guest": ("g", None), "tv": ("tv", ""), "original": ("orig", "NMIXX"),
@@ -65,7 +64,6 @@ F_LINKS = bi("링크", "Links")
 F_DATE = bi("날짜 (선택)", "Date (optional)")
 F_CHANNEL = bi("채널 (선택)", "Channel (optional)")
 F_MEMBER = bi("멤버 (선택)", "Member (optional)")
-F_ERA = bi("활동 시기 (선택)", "Era (optional)")
 F_OPTIONS = bi("옵션", "Options")
 F_KIND = bi("종류", "Kind")
 F_NEW_TITLE = bi("제목", "Title")
@@ -73,7 +71,6 @@ F_DESC = bi("설명 (선택)", "Description (optional)")
 F_URL_NAME = bi("주소 이름 (선택)", "URL name (optional)")
 VERTICAL = bi("세로 영상 (쇼츠)", "Vertical video (Shorts)")
 NONE_OPTION = bi("없음", "None")
-AUTO_OPTION = bi("자동 (날짜 기준)", "Automatic (by date)")
 
 YOUTUBE_ID = re.compile(
     r"(?:youtu\.be/|[?&]v=|/shorts/|/live/|/embed/)([A-Za-z0-9_-]{11})(?![A-Za-z0-9_-])")
@@ -104,15 +101,17 @@ def option_label(p):
 
 def targets(playlists):
     """Everything a video can be added to: [(id, label)]."""
-    return [(p["id"], option_label(p)) for p in playlists] + [(STANDALONE, standalone_label())]
+    return [(p["id"], option_label(p)) for p in playlists]
 
 
 def member_options(members):
     return [NONE_OPTION] + [f"{ko} ({code})" for code, ko in members.items() if code != "NMIXX"]
 
 
-def era_options(albums):
-    return [AUTO_OPTION] + [a["name"] for a in reversed(albums)] + [nd.PRE_DEBUT]
+def era_names(albums):
+    """Era names as add.html shows them (albums newest first, then pre-debut)."""
+    return [{"value": a["name"], "ko": a["name"], "en": a["name"]} for a in reversed(albums)] + [
+        {"value": nd.PRE_DEBUT, "ko": nd.PRE_DEBUT, "en": "Pre-debut"}]
 
 
 def kind_options():
@@ -120,7 +119,7 @@ def kind_options():
 
 
 def allowed_sources(kind):
-    return {nd.SERIES: {"youtube", "tiktok"}, STANDALONE: {"tiktok"}, nd.FANS: {"fans"}}.get(
+    return {nd.SERIES: {"youtube", "tiktok"}, "shorts": {"youtube", "tiktok"}, nd.FANS: {"fans"}}.get(
         kind, {"youtube", *nd.SOURCE_LABELS})
 
 
@@ -137,31 +136,25 @@ def form_spec(data):
             "era": p.get("era", ""), "solo": bool(p.get("solo")), "unit": bool(p.get("unit")),
             "needsMember": needs_member(p),
             "v": [index[v] for v in p["videos"]]} for p in playlists]
-    tgs.append({"id": STANDALONE, "label": standalone_label(), "kind": STANDALONE,
-                "title": "", "era": "", "solo": False, "unit": False, "needsMember": False,
-                "v": [index[vid] for vid, v in videos.items() if v["source"] == "tiktok" and "era" in v]})
     split = lambda text: dict(zip(("ko", "en"), text.split(" / ", 1)))
     return {
         "labels": {"target": F_TARGET, "links": F_LINKS, "date": F_DATE, "urlName": F_URL_NAME,
-                   "channel": F_CHANNEL, "member": F_MEMBER, "era": F_ERA, "options": F_OPTIONS,
+                   "channel": F_CHANNEL, "member": F_MEMBER, "options": F_OPTIONS,
                    "kind": F_KIND, "newTitle": F_NEW_TITLE, "desc": F_DESC},
         "vertical": VERTICAL, "noResponse": NO_RESPONSE[0],
         # value = exact text the bot parses; ko/en = what add.html shows
         "memberChoices": [{"value": v, "ko": v.split(" (")[0], "en": v.split(" (")[-1].rstrip(")").title()}
                           if "(" in v else {"value": v, **split(v)} for v in member_options(members)],
-        "eraChoices": [{"value": v, **(split(v) if v == AUTO_OPTION else
-                                       {"ko": v, "en": "Pre-debut" if v == nd.PRE_DEBUT else v})}
-                       for v in era_options(albums)],
+        "eraChoices": era_names(albums),
         "kindChoices": [{"value": v, "kind": k, "ko": KIND_LABELS[k][0], "en": KIND_LABELS[k][1],
                          "channel": {None: "youtube", "": "required"}.get(NEW_PLAYLIST_KINDS[k][1], "auto"),
                          "urlName": k in URL_NAME_PREFIX, "desc": k not in (nd.FANS, DIARY),
                          "title": {nd.FANS: "tier", DIARY: "year"}.get(k, "name")}
                         for k, v in zip(NEW_PLAYLIST_KINDS, kind_options())],
         "kindLabels": {k: {"ko": ko, "en": en} for k, (ko, en) in KIND_LABELS.items()},
-        "standaloneTitle": {"ko": "시리즈 없는 틱톡", "en": "TikTok without a series"},
         "issueTitle": {"video": "[새 영상] ", "playlist": "[새 재생목록] "},
-        "standalone": STANDALONE, "series": nd.SERIES,
-        "allowed": {k: sorted(allowed_sources(k)) for k in (nd.SERIES, STANDALONE, nd.FANS, "playlist")},
+        "series": nd.SERIES,
+        "allowed": {k: sorted(allowed_sources(k)) for k in (nd.SERIES, "shorts", nd.FANS, "playlist")},
         "fansKind": nd.FANS,
         "needsTitle": ["tiktok", "fans", *nd.SOURCE_LABELS], "needsThumb": ["wavve", "netflix", "fans"],
         "autoDate": ["youtube", "tiktok"],
@@ -210,10 +203,6 @@ def search_page_url():
             return ""
     owner, name = repo.split("/", 1)
     return f"https://{owner.lower()}.github.io/{name}/add.html"
-
-
-def standalone_label():
-    return f"[틱톡 · TikTok] 시리즈 없는 틱톡 · TikTok without a series ({STANDALONE})"
 
 
 def field(ftype, fid, label, ko=None, en=None, required=False, options=None, placeholder=None,
@@ -265,7 +254,6 @@ def sync_form(data=None):
     search_ko = f" 목록에서 찾기: {search}" if search else ""
     search_en = f" Search the list: {search}" if search else ""
     member_opts = member_options(members)
-    era_opts = era_options(albums)
 
     video = header(
         "새 영상 추가 / Add videos",
@@ -283,9 +271,6 @@ def sync_form(data=None):
                    "멤버 솔로 시리즈(tt-solo)와 팬즈 라이브에 넣을 때만 고르세요 (필수). 여러 멤버 영상은 유닛 시리즈에 넣으세요.",
                    "Only for the member-solo series (tt-solo) and FANS lives, where it is required. "
                    "Videos with several members go into a unit series.", options=member_opts, default=0)
-    video += field("dropdown", "era", F_ERA, "시리즈 없는 틱톡에만 쓰입니다. 발매 전 티저는 다음 앨범을 고르세요.",
-                   "Only for TikToks without a series. For pre-release teasers pick the upcoming album.",
-                   options=era_opts, default=0)
     video += ["  - type: checkboxes", "    id: options", "    attributes:",
               f"      label: {json.dumps(F_OPTIONS, ensure_ascii=False)}", "      options:",
               f"        - label: {json.dumps(VERTICAL, ensure_ascii=False)}"]
@@ -472,13 +457,6 @@ def tving_thumb(episode):
 
 # ---------- building records ----------
 
-def era_for(date, albums):
-    for a in reversed(albums):
-        if a["date"] <= date:
-            return a["name"]
-    return nd.PRE_DEBUT
-
-
 def resolve_date(item):
     if item["date"]:
         return item["date"]
@@ -544,16 +522,15 @@ def add_videos(form, data):
     member_m = re.search(r"\(([A-Z]+)\)", form.get(F_MEMBER, ""))
     member = member_m.group(1) if member_m else None
     vertical = f"- [x] {VERTICAL}".lower() in form.get(F_OPTIONS, "").lower()
-    era_choice = form.get(F_ERA, "")
 
-    kind = playlist["kind"] if playlist else STANDALONE
+    kind = playlist["kind"]
     solo = needs_member(playlist)
     if solo and not member:
         raise InputError("멤버 솔로 시리즈와 팬즈 라이브에는 멤버를 골라야 합니다. 여러 멤버 영상은 유닛 시리즈에 넣어 주세요.",
                          "The member-solo series and FANS lives need a member. "
                          "Put videos with several members in a unit series.")
     allowed = allowed_sources(kind)
-    channel = (playlist or {}).get("channel") or IMPLIED_CHANNEL.get(kind, "")
+    channel = playlist.get("channel") or IMPLIED_CHANNEL.get(kind, "")
     added = []
     for item in items:
         if item["source"] not in allowed:
@@ -561,10 +538,7 @@ def add_videos(form, data):
                 f"{SOURCE_NAMES[item['source']]} 영상은 이 재생목록에 넣을 수 없습니다: `{item['id']}`",
                 f"{SOURCE_NAMES[item['source']]} videos cannot go into this playlist: `{item['id']}`")
         vid = item["id"]
-        if kind == STANDALONE:
-            if "era" in videos.get(vid, {}):
-                raise InputError(f"이미 등록된 틱톡입니다: `{vid}`", f"This TikTok is already listed: `{vid}`")
-        elif vid in playlist["videos"]:
+        if vid in playlist["videos"]:
             raise InputError(f"이미 이 재생목록에 있는 영상입니다: `{vid}`", f"Already in this playlist: `{vid}`")
         if vid not in videos:
             videos[vid] = new_video(item, playlist_channel=channel, member=member, vertical=vertical)
@@ -574,15 +548,10 @@ def add_videos(form, data):
                 raise InputError(f"이 영상은 이미 다른 멤버로 표시되어 있습니다: `{vid}` ({', '.join(tagged)})",
                                  f"This video is already tagged with another member: `{vid}` ({', '.join(tagged)})")
             videos[vid]["members"] = [member]
-        if kind == STANDALONE:
-            era = era_choice if era_choice and era_choice != AUTO_OPTION else era_for(videos[vid]["date"], albums)
-            videos[vid]["era"] = era
-        else:
-            insert_by_date(playlist["videos"], vid, videos[vid]["date"], videos)
+        insert_by_date(playlist["videos"], vid, videos[vid]["date"], videos)
         added.append(vid)
 
-    where = standalone_label() if kind == STANDALONE else option_label(playlist)
-    summary = [f"✅ **{where}** 에 {len(added)}개 추가했습니다. / Added {len(added)}.", ""]
+    summary = [f"✅ **{option_label(playlist)}** 에 {len(added)}개 추가했습니다. / Added {len(added)}.", ""]
     summary += [video_line(vid, videos[vid]) for vid in added]
     return f"새 영상 {len(added)}개 추가 ({today()})", "\n".join(summary)
 

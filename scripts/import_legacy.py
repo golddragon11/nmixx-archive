@@ -100,7 +100,7 @@ def convert(legacy):
         tiers.setdefault(f["only"], []).append(f["id"])
     for t in legacy["TIKTOKS"]:
         check_fields(t, {"id", "title", "date", "era"}, "tiktok")
-        put(t["id"], {"source": "tiktok", "title": t["title"], "date": t["date"], "era": t["era"]})
+        put(t["id"], {"source": "tiktok", "title": t["title"], "date": t["date"]})
 
     playlists = []
     for p in legacy["PLAYLISTS"]:
@@ -147,6 +147,15 @@ def convert(legacy):
             put(e["id"], fields)
         q["videos"] = [e["id"] for e in s["eps"]]
         playlists.append(q)
+
+    # standalone TikToks live in their era's Shorts playlist (the page merges them there too)
+    shorts = {p["era"]: p for p in playlists if p["kind"] == "shorts"}
+    for t in sorted(legacy["TIKTOKS"], key=lambda t: t["date"]):
+        if t["era"] not in shorts:
+            raise ValueError(f"tiktok {t['id']}: no Shorts playlist for era {t['era']!r}")
+        lst = shorts[t["era"]]["videos"]
+        pos = max((n + 1 for n, i in enumerate(lst) if videos[i]["date"] <= t["date"]), default=0)
+        lst.insert(pos, t["id"])
 
     for tier, ids in tiers.items():  # FAN_LIVES is newest first; playlists are stored oldest first
         playlists.append({"id": nd.fans_id(tier), "kind": nd.FANS, "title": nd.fans_title(tier),

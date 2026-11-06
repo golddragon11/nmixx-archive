@@ -32,8 +32,8 @@ No code editing needed — everything happens on github.com, also from a phone.
 
    | 출처 / Source | 쓰는 법 / Write | 자동 / Automatic | 넣을 수 있는 곳 / Allowed in |
    |---|---|---|---|
-   | YouTube | `링크` | 제목, 날짜 (유튜브 게시일, 한국 시간), 채널 / title, date (publish date, Korea time), channel | 재생목록, 쇼츠 시리즈 / playlists, Shorts series |
-   | TikTok | `링크 \| 제목` | 날짜 (영상 id에서) / date (from the id) | 쇼츠 시리즈, 시리즈 없는 틱톡 / Shorts series, TikTok without a series |
+   | YouTube | `링크` | 제목, 날짜 (유튜브 게시일, 한국 시간), 채널 / title, date (publish date, Korea time), channel | 모든 재생목록 (팬즈 제외) / every playlist except FANS |
+   | TikTok | `링크 \| 제목` | 날짜 (영상 id에서) / date (from the id) | 쇼츠 재생목록, 쇼츠 시리즈 / Shorts playlists, Shorts series |
    | TVING | `링크 \| 제목 \| 날짜` | 썸네일 / thumbnail | 재생목록 / playlists |
    | Wavve, Netflix | `링크 \| 제목 \| 날짜 \| 썸네일` | — | 재생목록 / playlists |
    | FANS | `링크 \| 제목 \| 날짜 \| 썸네일` + 멤버 / member | — | 팬즈 라이브 기수 / FANS tier playlists |
@@ -86,7 +86,8 @@ python3 scripts/add_video.py sync-form      # regenerate the issue forms
 ```
 
 Editing by hand: add a video record to `data/videos/<year>.json` (keyed by its id) and its id
-to the playlist's `videos` list in `data/playlists/<kind>/<id>.json`; a new playlist also needs
+to the playlist's `videos` list in `data/playlists/<kind>/<id>.json` (every video belongs to at least one
+playlist; a TikTok without a series goes in its era's Shorts playlist); a new playlist also needs
 its id in `data/playlists/order.json`. Then run `validate.py`. Field reference:
 [docs/DATA_REDESIGN.md](docs/DATA_REDESIGN.md).
 

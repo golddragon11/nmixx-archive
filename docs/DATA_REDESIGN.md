@@ -49,8 +49,7 @@ data/
                  "vertical": true, "members": ["SULLYOON", "JIWOO", "KYUJIN"] }
 "wv-M_EP202610297364": { "source": "wavve", "title": "988회 · …", "date": "2026-11-04",
                  "url": "https://www.wavve.com/…", "thumb": "https://image.wavve.com/…" }
-"7704213048080207122": { "source": "tiktok", "title": "…", "date": "2026-11-04",
-                 "era": "Strange Muse" }
+"7704213048080207122": { "source": "tiktok", "title": "…", "date": "2026-11-04" }
 ```
 
 | Field | Meaning | Legacy |
@@ -62,7 +61,6 @@ data/
 | `embeddable: false` | Opens on YouTube instead of playing inline | `x` |
 | `members` | Member codes from `members.json` | `m`, `member` |
 | `url`, `thumb` | Watch page and thumbnail for non-YouTube sources | `link`, `img`/`thumb` |
-| `era` | TikTok: also listed as a standalone Short in that era | `TIKTOKS[].era` |
 | — | Fan lives: the membership tier lives on their playlist (`kind: "fans"`, `tier`) | `only` |
 
 ### Playlist
@@ -81,8 +79,10 @@ stored order breaks ties). Dropped because no code reads them: `featured`, `sing
 Fan lives are stored in one playlist per membership tier: `data/playlists/fans/fans-nswer-4th.json`
 with `kind: "fans"` and `tier: "NSWER 4th"` (the id is the one the page generates). The page still
 builds and translates the visible title and description itself from the tier, so the file's
-`title` is only used for search in `add.html`. Standalone TikToks are videos with an `era`; the page
-merges them into that era's Shorts playlist.
+`title` is only used for search in `add.html`. Standalone TikToks: the page
+merges them into that era's Shorts playlist, so that is where they are stored: TikToks listed
+in a `shorts` playlist file become the page's standalone TikToks (with the playlist's `era`).
+Every video is in at least one playlist file.
 
 ## Build
 
@@ -94,7 +94,7 @@ arrays, so the page code is unchanged. Per-list rules:
 | `ALBUMS` | `albums.json`, reversed (newest first) | `name`, `date` |
 | `PLAYLISTS` | playlists except `series`, in `order.json` order | `id title date` + `ch` + `v` + `x` + `link img via` |
 | `TIKTOK_SERIES` | `series` playlists | `id title date` + `tt` (TikTok) + `m` (single member) |
-| `TIKTOKS` | TikTok videos with `era`, oldest first | `id title date era` |
+| `TIKTOKS` | TikToks in `shorts` playlists, oldest first, `era` = the playlist's | `id title date era` |
 | `FAN_LIVES` | videos of `fans` playlists, newest first, `only` = the playlist's `tier` | `id title date member only thumb` |
 
 Local preview: `python3 scripts/build.py && python3 -m http.server`.
@@ -104,8 +104,7 @@ Local preview: `python3 scripts/build.py && python3 -m http.server`.
 ## Validation
 
 `scripts/validate.py` (plain Python) runs on every push and inside the form Action:
-unique ids; every playlist video exists; every video is in a playlist or is a
-standalone TikTok/fan live; valid dates; known `era`, `members`, `kind`, `source`;
+unique ids; every playlist video exists; every video is in a playlist; valid dates; known `era`, `members`, `kind`, `source`;
 required fields per source (`thumb` for Wavve/Netflix, `url` for non-YouTube).
 
 ## Tools
@@ -116,7 +115,7 @@ required fields per source (`thumb` for Wavve/Netflix, `url` for non-YouTube).
   (upload time encoded in the id); other sources need one. The playlist is a text field
   (id, or words from the title/era; ambiguous input gets a list of candidates)
   because GitHub dropdowns cannot be searched. `add.html` is the main entry point: it
-  searches all targets, takes every field, checks each link as you type (using the
+  searches all playlists (including Shorts and TikTok series), takes every field, checks each link as you type (using the
   labels, options and link patterns exported by `add_video.form_spec` into
   `data/add-form.js`), and opens a plain GitHub issue with the finished body.
   One "new playlist" form (web show, TV, original, live, live diary, tour, FANS tier); new ids follow

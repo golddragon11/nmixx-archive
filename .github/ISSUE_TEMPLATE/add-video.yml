@@ -40,25 +40,6 @@ body:
         - "지우 (JIWOO)"
         - "규진 (KYUJIN)"
       default: 0
-  - type: dropdown
-    id: era
-    attributes:
-      label: "활동 시기 (선택) / Era (optional)"
-      description: "시리즈 없는 틱톡에만 쓰입니다. 발매 전 티저는 다음 앨범을 고르세요.  \nOnly for TikToks without a series. For pre-release teasers pick the upcoming album."
-      options:
-        - "자동 (날짜 기준) / Automatic (by date)"
-        - "Strange Muse"
-        - "Heavy Serenade"
-        - "Blue Valentine"
-        - "Fe3O4: FORWARD"
-        - "Fe3O4: STICK OUT"
-        - "Fe3O4: BREAK"
-        - "A Midsummer NMIXX's Dream"
-        - "expérgo"
-        - "ENTWURF"
-        - "AD MARE"
-        - "데뷔 전"
-      default: 0
   - type: checkboxes
     id: options
     attributes:

@@ -138,7 +138,7 @@ def member_names(codes, members):
 
 def build_legacy(albums, members, videos, playlists):
     """Return the five arrays (ALBUMS, PLAYLISTS, FAN_LIVES, TIKTOKS, TIKTOK_SERIES)."""
-    out_playlists, series, fan_lives = [], [], []
+    out_playlists, series, fan_lives, tiktoks = [], [], [], []
     for p in playlists:
         if p["kind"] == FANS:
             # stored oldest first like other playlists; the page's list is newest first
@@ -161,11 +161,12 @@ def build_legacy(albums, members, videos, playlists):
                          ("era", "era"), ("show", "prog"), ("format", "ftype")):
             if new in p:
                 q[old] = p[new]
-        q["eps"] = [legacy_episode(i, videos[i], False) for i in p["videos"]]
+        # TikToks stored in a Shorts playlist are the page's standalone TikToks; it merges them back in
+        tiktoks += [[i, videos[i], p["era"]] for i in p["videos"] if videos[i]["source"] == "tiktok"]
+        q["eps"] = [legacy_episode(i, videos[i], False) for i in p["videos"] if videos[i]["source"] != "tiktok"]
         out_playlists.append(q)
 
-    tiktoks = sorted(([vid, v] for vid, v in videos.items() if v["source"] == "tiktok" and "era" in v),
-                     key=lambda x: x[1]["date"])
+    tiktoks = sorted(tiktoks, key=lambda x: x[1]["date"])
     fans = sorted(fan_lives, key=lambda x: x[1]["date"], reverse=True)
     return {
         "ALBUMS": [{"name": a["name"], "date": a["date"]} for a in reversed(albums)],  # page wants newest first
@@ -173,8 +174,8 @@ def build_legacy(albums, members, videos, playlists):
         "FAN_LIVES": [{"id": vid, "title": v["title"], "date": v["date"],
                        "member": member_names(v.get("members", []), members),
                        "only": tier, "thumb": v["thumb"]} for vid, v, tier in fans],
-        "TIKTOKS": [{"id": vid, "title": v["title"], "date": v["date"], "era": v["era"]}
-                    for vid, v in tiktoks],
+        "TIKTOKS": [{"id": vid, "title": v["title"], "date": v["date"], "era": era}
+                    for vid, v, era in tiktoks],
         "TIKTOK_SERIES": series,
     }
 

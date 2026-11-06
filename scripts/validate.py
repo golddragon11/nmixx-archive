@@ -59,7 +59,7 @@ def validate(albums, members, videos, playlists, check_files=True):
             err(f"{where}: has no videos")
         if len(set(p.get("videos", []))) != len(p.get("videos", [])):
             err(f"{where}: lists a video twice")
-        allowed = {nd.SERIES: SERIES_SOURCES, nd.FANS: {"fans"}}.get(p.get("kind"), PLAYLIST_SOURCES)
+        allowed = {nd.SERIES: SERIES_SOURCES, "shorts": SERIES_SOURCES, nd.FANS: {"fans"}}.get(p.get("kind"), PLAYLIST_SOURCES)
         if p.get("kind") == nd.FANS and (not p.get("tier") or p["id"] != nd.fans_id(p["tier"])):
             err(f"{where}: fan-live playlists need a tier and the id {nd.fans_id(p.get('tier') or '')!r}")
         for vid in p.get("videos", []):
@@ -86,10 +86,9 @@ def validate(albums, members, videos, playlists, check_files=True):
             err(f"{where}: {source} videos need url and thumb")
         if source == "fans" and not (v.get("thumb") and len(v.get("members", [])) == 1):
             err(f"{where}: fan lives need a thumb and exactly one member")
-        if "era" in v and (source != "tiktok" or v["era"] not in eras):
-            err(f"{where}: era {v['era']!r} is only allowed on TikToks and must be a known album")
-        standalone = source == "tiktok" and "era" in v
-        if vid not in used and not standalone:
+        if "era" in v:
+            err(f"{where}: videos have no era; put TikToks in their era's Shorts playlist")
+        if vid not in used:
             err(f"{where}: not in any playlist")
 
     if not errors:
