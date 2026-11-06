@@ -35,6 +35,8 @@ NEW_PLAYLIST_KINDS = {
     "guest": ("g", None), "tv": ("tv", None), "original": ("orig", "NMIXX"),
     "live": ("live", "NMIXX"), "tour": ("tour", "NMIXX"),
 }
+# Era playlists of these kinds leave `channel` empty; their videos omit `ch` when it is NMIXX.
+IMPLIED_CHANNEL = {"shorts": "NMIXX", "mv": "NMIXX", "nmixxetc": "NMIXX"}
 MEMBERS = [("해원", "HAEWON"), ("릴리", "LILY"), ("설윤", "SULLYOON"),
            ("배이", "BAE"), ("지우", "JIWOO"), ("규진", "KYUJIN")]
 NO_MEMBER = "없음"
@@ -329,7 +331,8 @@ def add_videos(form, before):
     member = re.search(r"\(([A-Z]+)\)", form.get(F_MEMBER, ""))
     vertical = f"- [x] {VERTICAL}".lower() in form.get(F_OPTIONS, "").lower()
 
-    eps = build_episodes(links, p["channel"], title_override, form.get(F_CHANNEL_OPT, ""),
+    channel = p["channel"] or IMPLIED_CHANNEL.get(p["kind"], "")
+    eps = build_episodes(links, channel, title_override, form.get(F_CHANNEL_OPT, ""),
                          member and member.group(1), vertical)
     insert_episodes(ROOT / p["file"], p["id"], eps)
     run_prettier({p["file"]})
