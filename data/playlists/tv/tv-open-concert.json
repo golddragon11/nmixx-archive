@@ -1,0 +1,10 @@
+{
+  "id": "tv-open-concert",
+  "kind": "tv",
+  "title": "열린음악회",
+  "channel": "KBS 1TV",
+  "videos": [
+    "wv-K01_PS-2024145128-01-000",
+    "wv-K01_PS-2025166146-01-000"
+  ]
+}

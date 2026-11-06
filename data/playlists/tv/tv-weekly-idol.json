@@ -1,0 +1,13 @@
+{
+  "id": "tv-weekly-idol",
+  "kind": "tv",
+  "title": "주간아이돌",
+  "channel": "MBC Every1",
+  "videos": [
+    "wv-M03_GA202202230001",
+    "wv-M03_GA202209210002",
+    "wv-M03_GA202303220001",
+    "wv-M03_GA202307120002",
+    "wv-M03_GA202401310001"
+  ]
+}

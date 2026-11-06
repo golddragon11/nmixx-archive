@@ -1,0 +1,11 @@
+{
+  "id": "tv-kcon",
+  "kind": "tv",
+  "title": "KCON",
+  "channel": "Mnet",
+  "videos": [
+    "tv-E004173603",
+    "tv-E003796771",
+    "tv-E004173637"
+  ]
+}

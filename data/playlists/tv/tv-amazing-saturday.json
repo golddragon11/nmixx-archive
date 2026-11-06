@@ -1,0 +1,11 @@
+{
+  "id": "tv-amazing-saturday",
+  "kind": "tv",
+  "title": "놀라운 토요일",
+  "channel": "tvN",
+  "videos": [
+    "tv-E004548958",
+    "tv-E004556878",
+    "tv-E004660617"
+  ]
+}
