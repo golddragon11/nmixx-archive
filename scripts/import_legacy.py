@@ -71,6 +71,13 @@ def read_from_js(paths):
     return run_node(body + "\nprocess.stdout.write(JSON.stringify({" + ",".join(NAMES) + "}));")
 
 
+def stable_id(playlist):
+    """Upstream numbers era playlists from the newest album (shorts-era00); use the album name."""
+    if "era" not in playlist:
+        return playlist["id"]
+    return re.sub(r"era\d+", nd.era_slug(playlist["era"]), playlist["id"])
+
+
 def codes(member_string):
     return [KO_TO_CODE[n] for n in member_string.split("·")] if member_string else []
 
@@ -97,7 +104,7 @@ def convert(legacy):
     for p in legacy["PLAYLISTS"]:
         check_fields(p, {"id", "kind", "title", "channel", "desc", "era", "prog", "ftype",
                          "coverFirst", "diary", "eps", *nd.DROPPED_PLAYLIST_FIELDS}, "playlist")
-        q = {"id": p["id"], "kind": p["kind"]}
+        q = {"id": stable_id(p), "kind": p["kind"]}
         for old, new in (("title", "title"), ("channel", "channel"), ("desc", "desc"),
                          ("era", "era"), ("prog", "show"), ("ftype", "format")):
             if old in p:
@@ -139,7 +146,10 @@ def convert(legacy):
         q["videos"] = [e["id"] for e in s["eps"]]
         playlists.append(q)
 
-    albums = [{"name": a["name"], "date": a["date"]} for a in legacy["ALBUMS"]]
+    albums = [{"name": a["name"], "date": a["date"]} for a in reversed(legacy["ALBUMS"])]  # oldest first
+    ids = [p["id"] for p in playlists]
+    if len(set(ids)) != len(ids):
+        raise ValueError("playlist ids collide after renaming era ids")
     members = {code: ko for ko, code in KO_TO_CODE.items()}
     return albums, members, videos, playlists
 
@@ -153,6 +163,7 @@ def check_fields(item, allowed, what):
 def comparable(legacy):
     out = json.loads(json.dumps({k: legacy[k] for k in NAMES}))
     for p in out["PLAYLISTS"]:
+        p["id"] = stable_id(p)
         for f in nd.DROPPED_PLAYLIST_FIELDS:
             p.pop(f, None)
     return out

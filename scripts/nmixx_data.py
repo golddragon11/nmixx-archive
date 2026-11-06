@@ -1,6 +1,8 @@
 """Shared helpers for the data/ format described in docs/DATA_REDESIGN.md."""
 
 import json
+import re
+import unicodedata
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -12,6 +14,14 @@ SOURCE_LABELS = {"wavve": "웨이브", "tving": "티빙", "netflix": "넷플릭�
 SERIES = "series"
 PRE_DEBUT = "데뷔 전"
 DROPPED_PLAYLIST_FIELDS = ("featured", "single")
+
+
+def era_slug(era):
+    """'A Midsummer NMIXX's Dream' -> 'a-midsummer-nmixxs-dream'; '데뷔 전' -> 'pre-debut'."""
+    if era == PRE_DEBUT:
+        return "pre-debut"
+    ascii_name = unicodedata.normalize("NFKD", era).encode("ascii", "ignore").decode()
+    return re.sub(r"[^a-z0-9]+", "-", ascii_name.lower().replace("'", "")).strip("-")
 
 
 # ---------- reading and writing ----------
@@ -126,7 +136,7 @@ def build_legacy(albums, members, videos, playlists):
     fans = sorted(([vid, v] for vid, v in videos.items() if v["source"] == "fans"),
                   key=lambda x: x[1]["date"], reverse=True)
     return {
-        "ALBUMS": [{"name": a["name"], "date": a["date"]} for a in albums],
+        "ALBUMS": [{"name": a["name"], "date": a["date"]} for a in reversed(albums)],  # page wants newest first
         "PLAYLISTS": out_playlists,
         "FAN_LIVES": [{"id": vid, "title": v["title"], "date": v["date"],
                        "member": member_names(v.get("members", []), members),

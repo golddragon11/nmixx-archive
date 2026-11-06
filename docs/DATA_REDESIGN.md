@@ -27,13 +27,15 @@ The data mirrors the arrays an external page generator wrote into `index.html`:
 | Page code changes (phase 4) | Later. Phases 1–3 leave the page code untouched |
 | Upstream tracking | Continues; an importer converts upstream's `index.html` |
 | Video ids | Unchanged (links use them; browser storage does not) |
+| Era playlist ids | Album name instead of upstream's newest-first number: `shorts-era00` → `shorts-strange-muse`, pre-debut → `shorts-pre-debut`. A new album never renumbers existing ids. Old `#/title/…era00` links stop matching (one-time) |
+| Album order | `albums.json` oldest first so new albums are appended; the build reverses it for the page (newest on top) |
 | Issue forms | Labels and descriptions in Korean and English |
 
 ## Format
 
 ```
 data/
-  albums.json                     [{ "name": "Strange Muse", "date": "2026-10-19" }, …]  newest first
+  albums.json                     [{ "name": "AD MARE", "date": "2022-02-22" }, …]  oldest first; append new albums
   members.json                    { "HAEWON": "해원", "LILY": "릴리", …, "NMIXX": "NMIXX" }
   videos/<year>.json              { "<video id>": { video }, … }  by year of `date`
   playlists/order.json            [ "<playlist id>", … ]  page order
@@ -86,7 +88,7 @@ arrays, so the page code is unchanged. Per-list rules:
 
 | Legacy list | Built from | Video fields emitted |
 |---|---|---|
-| `ALBUMS` | `albums.json` | `name`, `date` |
+| `ALBUMS` | `albums.json`, reversed (newest first) | `name`, `date` |
 | `PLAYLISTS` | playlists except `series`, in `order.json` order | `id title date` + `ch` + `v` + `x` + `link img via` |
 | `TIKTOK_SERIES` | `series` playlists | `id title date` + `tt` (TikTok) + `m` (single member) |
 | `TIKTOKS` | TikTok videos with `era`, oldest first | `id title date era` |
@@ -110,8 +112,9 @@ required fields per source (`thumb` for Wavve/Netflix, `url` for non-YouTube).
   TikTok series and "standalone TikTok". One "new playlist" form. Edits are plain
   JSON; no Node or Prettier.
 - **`scripts/import_legacy.py`**: converts legacy arrays (from upstream's
-  `index.html` or the old `data/*.js`) into the new format; used for the migration
-  and for upstream syncs (shows and applies differences).
+  `index.html` or the old `data/*.js`) into the new format, renaming upstream's
+  era-numbered playlist ids to album-name ids; used for the migration and for
+  upstream syncs (shows and applies differences).
 
 ## Verification
 
