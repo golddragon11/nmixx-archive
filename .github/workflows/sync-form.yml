@@ -1,9 +1,9 @@
-name: 이슈 폼 재생목록 갱신
+name: 이슈 폼 갱신
 
 on:
   push:
     branches: [main]
-    paths: ["data/playlists/**", "index.html", "scripts/add_video.py"]
+    paths: ["data/albums.json", "data/members.json", "scripts/add_video.py"]
   workflow_dispatch:
 
 permissions:
@@ -18,13 +18,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python3 scripts/add_video.py sync-form
-      - name: Commit if the playlist list changed
+      - name: Commit if the forms changed
         run: |
           git diff --quiet && exit 0
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/ISSUE_TEMPLATE/add-video.yml
-          git commit -m "이슈 폼 재생목록 갱신"
+          git add .github/ISSUE_TEMPLATE
+          git commit -m "이슈 폼 갱신"
           for attempt in 1 2 3; do
             git pull --rebase && git push && exit 0
             sleep 5

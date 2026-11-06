@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>영상 추가 · Add videos</title>
+<style>
+  :root { color-scheme: light dark; --bg: #fff; --fg: #111; --muted: #666; --line: #ddd; --hover: #f2f4f8; --accent: #2b6cff; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #0f1115; --fg: #eee; --muted: #9aa; --line: #2a2f3a; --hover: #1a1f29; --accent: #6b9bff; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  p { margin: 4px 0; color: var(--muted); }
+  .bar { position: sticky; top: 0; background: var(--bg); padding: 12px 0; }
+  input { width: 100%; padding: 12px 14px; font: inherit; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: inherit; }
+  input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li a { display: block; padding: 10px 12px; border-bottom: 1px solid var(--line); color: inherit; text-decoration: none; }
+  li a:hover, li a:focus { background: var(--hover); }
+  .id { display: block; font-size: 12px; color: var(--muted); }
+  .links { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 12px 0 0; }
+  .links a { color: var(--accent); }
+  #count { font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>영상 추가 · Add videos</h1>
+  <p>재생목록을 검색해서 고르면 GitHub의 '새 영상 추가' 양식이 열립니다.</p>
+  <p>Search for a playlist and pick it to open the GitHub "Add videos" form.</p>
+  <div class="links"><a id="newPlaylist" href="#">새 재생목록 만들기 · New playlist</a></div>
+  <div class="bar">
+    <input id="q" type="search" placeholder="예: 월간, radio star, shorts strange muse" autocomplete="off" autofocus>
+    <p id="count"></p>
+  </div>
+  <ul id="list"></ul>
+</main>
+<script src="data/targets.js"></script>
+<script>
+  // Works on any <owner>.github.io/<repo>/ site; ?repo=owner/name overrides (e.g. for local preview).
+  const repo = new URLSearchParams(location.search).get("repo")
+    || (location.hostname.endsWith(".github.io")
+        ? location.hostname.split(".")[0] + "/" + location.pathname.split("/")[1] : "");
+  const issueUrl = (template, params) =>
+    `https://github.com/${repo}/issues/new?` + new URLSearchParams({ template, ...params });
+  const norm = (s) => s.normalize("NFKC").toLowerCase().replace(/[\s\p{P}\p{S}_]+/gu, "");
+  const list = document.getElementById("list"), q = document.getElementById("q"), count = document.getElementById("count");
+  document.getElementById("newPlaylist").href = repo ? issueUrl("add-playlist.yml", {}) : "#";
+
+  function render() {
+    const words = q.value.split(/\s+/).map(norm).filter(Boolean);
+    const hits = TARGETS.filter((t) => words.every((w) => norm(t.label).includes(w)));
+    count.textContent = `${hits.length}개 · ${hits.length} playlists` + (hits.length > 100 ? " (처음 100개 · first 100)" : "");
+    list.replaceChildren(...hits.slice(0, 100).map((t) => {
+      const a = document.createElement("a");
+      a.href = repo ? issueUrl("add-video.yml", { playlist: t.label }) : "#";
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = t.label.replace(/ \([^()]+\)$/, "");
+      const id = document.createElement("span");
+      id.className = "id";
+      id.textContent = t.id;
+      a.append(id);
+      const li = document.createElement("li");
+      li.append(a);
+      return li;
+    }));
+  }
+  q.addEventListener("input", render);
+  render();
+  if (!repo) count.textContent += " — 저장소를 알 수 없습니다 · unknown repository (add ?repo=owner/name)";
+</script>
+</body>
+</html>

@@ -1,98 +1,88 @@
 # NMIXX Archive
 
-Static site served by GitHub Pages straight from this repo (no build step).
+Static site published to GitHub Pages by a GitHub Actions build.
 
 - `index.html` — page layout, styles and app code
-- `data/` — all albums, playlists and videos
+- `data/` — albums, playlists and videos as JSON (format: [docs/DATA_REDESIGN.md](docs/DATA_REDESIGN.md))
+- `add.html` — playlist search that opens the "add videos" form
+- `scripts/` — build, validation, issue-form and upstream-import tools
 
-```
-data/
-  albums.js          ALBUMS         album names and release dates (used for eras)
-  fan-lives.js       FAN_LIVES      fan-platform lives (member, thumb)
-  tiktoks.js         TIKTOKS        standalone TikTok shorts (era)
-  tiktok-series.js   TIKTOK_SERIES  TikTok series, each with an eps list
-  playlists/<kind>.js               YouTube playlists of that kind, each with an eps list
-                                    (live, tv, guest, mv, nmixxetc, original,
-                                     shorts, stage, stagex, tour, univx)
-```
-
-## 영상 추가하기 (추천)
+## 영상 추가하기 / Adding videos
 
 코드를 직접 고칠 필요 없이 GitHub 웹사이트에서 추가할 수 있습니다. 휴대폰에서도 됩니다.
+No code editing needed — everything happens on github.com, also from a phone.
 
-1. 저장소의 **Issues → New issue → 새 영상 추가** 를 누릅니다.
-2. **재생목록** 을 고르고 **유튜브 링크** 를 붙여 넣습니다. 여러 개면 한 줄에 하나씩.
-   영상마다 날짜가 다르면 링크 뒤에 날짜를 적습니다. 예: `https://youtu.be/abc 2024-05-01`
-3. 날짜, 제목, 채널은 비워 두면 자동으로 채워집니다. (날짜는 오늘, 제목·채널은 유튜브에서)
-4. **Submit new issue** 를 누르면 1~2분 뒤 봇이 영상을 추가하고 이슈에 결과를 남긴 뒤 이슈를 닫습니다.
-   사이트에는 몇 분 안에 반영됩니다.
-5. 문제가 있으면 봇이 이유를 댓글로 남깁니다. 이슈 내용을 수정하면 자동으로 다시 시도합니다.
+1. **사이트의 `/add.html`** 에서 재생목록을 검색해 고르거나, **Issues → New issue → 새 영상 추가** 를 누릅니다.
+   Open **`/add.html`** on the site and pick a playlist, or go to **Issues → New issue → Add videos**.
+2. **재생목록** 칸에 id나 이름 일부를 적습니다 (예: `radio star`, `shorts strange muse`).
+   Type the playlist id or part of its name in **Playlist**.
+3. **링크** 칸에 한 줄에 하나씩 붙여 넣습니다. 링크 뒤에 `|` 로 날짜·제목·썸네일을 붙일 수 있습니다.
+   Paste one link per line; after a link you can add `|` date, title, thumbnail.
 
-## 새 재생목록 만들기
+   ```
+   https://youtu.be/abc123def45
+   https://youtu.be/abc123def46 2024-05-01
+   https://www.tiktok.com/@nmixx_official/video/7704213048080207122 | 2026-11-04 | 𝑵𝑬𝑶𝑵 🐶〃🐱
+   https://www.wavve.com/player/stream/vod?contentid=M_EP202610297364.1 | 2026-11-04 | 988회 · 특집 | https://image.wavve.com/….jpg
+   ```
 
-1. **Issues → New issue → 새 재생목록 추가** 를 누릅니다.
-2. **종류** (웹예능 출연, 방송, NMIXX Original, 라이브, 투어·콘서트) 와 **제목** 을 정하고,
-   첫 영상들의 **유튜브 링크** 를 붙여 넣습니다. 영상이 1개 이상 있어야 사이트에 보입니다.
-3. 채널은 비워 두면 라이브·NMIXX Original·투어는 NMIXX, 웹예능·방송은 첫 영상의 유튜브 채널 이름이 됩니다.
-4. 제출하면 재생목록이 만들어지고, '새 영상 추가' 양식의 재생목록 목록에도 바로 추가됩니다.
+   | 출처 / Source | 제목 / Title | 썸네일 / Thumbnail | 넣을 수 있는 곳 / Allowed in |
+   |---|---|---|---|
+   | YouTube | 자동 / automatic | 자동 / automatic | 재생목록, 쇼츠 시리즈 / playlists, Shorts series |
+   | TikTok | 필요 / required | — | 쇼츠 시리즈, 시리즈 없는 틱톡 / Shorts series, TikTok without a series |
+   | TVING | 필요 / required | 비우면 자동 / automatic if blank | 재생목록 / playlists |
+   | Wavve, Netflix | 필요 / required | 필요 (이미지나 유튜브 링크) / required (image or YouTube link) | 재생목록 / playlists |
 
-음악방송·MV·쇼츠·MIXX 스페셜처럼 앨범 활동별로 묶이는 재생목록은 이 양식으로 만들 수 없습니다.
+4. 제출하면 1~2분 뒤 봇이 추가하고 결과를 댓글로 남긴 뒤 이슈를 닫습니다. 사이트에는 몇 분 안에 반영됩니다.
+   After submitting, a bot adds the videos within a minute or two, comments and closes the issue; the site updates a few minutes later.
+5. 문제가 있으면 봇이 이유를 댓글로 남깁니다. 이슈를 수정하면 자동으로 다시 시도합니다.
+   If something is wrong the bot explains why; editing the issue retries automatically.
 
-저장소 주인과 협업자(Collaborator)가 올린 이슈만 처리됩니다.
+## 새 재생목록 만들기 / New playlists
 
-## Adding a video by hand
+**Issues → New issue → 새 재생목록 추가 / New playlist**: 종류 (웹예능 출연, 방송, NMIXX Original,
+라이브, 투어·콘서트), 제목, 첫 영상 링크를 넣습니다. Pick a kind (web show, TV, NMIXX Original, live,
+tour), a title and the first links. 앨범 활동별 재생목록 (음악방송·MV·쇼츠·MIXX 스페셜) 은 이 양식으로
+만들 수 없습니다. Album-era playlists (music shows, MV, Shorts, specials) cannot be created this way.
 
-1. Open the playlist file for its kind (e.g. `data/playlists/live.js`) and find
-   the playlist by searching for its `title` or `id` (e.g. `id: "monthly-haewon"`).
-2. Append the video to the end of that playlist's `eps` list. Lists are kept
-   oldest → newest.
+저장소 주인과 협업자가 올린 이슈만 처리됩니다. Only issues from the owner and collaborators are processed.
 
-```js
-eps: [
-  // ...existing videos
-  {
-    id: "CjV2LNNcWRc",   // YouTube video id (the part after watch?v=)
-    title: "...",
-    date: "2026-11-05",  // YYYY-MM-DD
-    ch: "NMIXX",         // channel name
-  },
-],
+## Development
+
+```sh
+python3 scripts/validate.py                 # check data/
+python3 scripts/build.py                    # write data/bundle.js and data/targets.js (gitignored)
+python3 -m http.server                      # preview at http://localhost:8000
+python3 scripts/add_video.py sync-form      # regenerate the issue forms
 ```
 
-### Optional fields
+Editing by hand: add a video record to `data/videos/<year>.json` (keyed by its id) and its id
+to the playlist's `videos` list in `data/playlists/<kind>/<id>.json`; a new playlist also needs
+its id in `data/playlists/order.json`. Then run `validate.py`. Field reference:
+[docs/DATA_REDESIGN.md](docs/DATA_REDESIGN.md).
 
-| Field | Meaning |
-|---|---|
-| `v: 1` | Vertical video (Shorts) |
-| `m: "HAEWON"` | Member tag; drives the member chips on solo playlists (`HAEWON`, `LILY`, `SULLYOON`, `BAE`, `JIWOO`, `KYUJIN`) |
-| `tt: 1` | TikTok video; `id` is the TikTok video id |
-| `x: 1` | Embedding is blocked; the video opens on YouTube instead |
-| `link`, `img`, `via` | Non-YouTube video: page URL, thumbnail URL, platform name (e.g. `"웨이브"`) |
+### Workflows
 
-## How the issue forms work
+| Workflow | Runs on | Does |
+|---|---|---|
+| `pages.yml` | push to `main`, or started by `add-video.yml` | validate, build, deploy to Pages |
+| `add-video.yml` | issues from the forms | `scripts/add_video.py add`, commit, deploy, comment, close |
+| `sync-form.yml` | changes to albums, members or the form script | regenerate `.github/ISSUE_TEMPLATE/` |
 
-- `.github/ISSUE_TEMPLATE/add-video.yml`, `add-playlist.yml` — the forms.
-  Generated by `python3 scripts/add_video.py sync-form`; the add-video playlist
-  list is rebuilt by `.github/workflows/sync-form.yml` whenever playlist files
-  change on `main`, and directly by the Action when it creates a playlist
-  (pushes made by the Action don't trigger other workflows).
-- `.github/workflows/add-video.yml` — runs `scripts/add_video.py add` on new or
-  edited issues from the owner/collaborators, then commits, comments and closes.
-- `scripts/add_video.py add` handles either form: it fetches titles and channels
-  from YouTube's public oEmbed endpoint (no API key), inserts entries in date
-  order (or appends a new playlist to `data/playlists/<kind>.js` with a
-  generated id), runs Prettier, and checks with Node that the data still loads
-  and only the intended playlist changed.
+One-time setup on a new repo or fork: **Settings → General → Features → Issues** on,
+**Settings → Pages → Source: GitHub Actions**, and enable workflows in the **Actions** tab.
 
-One-time setup on a new repo/fork: **Settings → General → Features → Issues**
-on, and **Actions → enable workflows**.
+### Syncing from upstream
 
-## Adding a playlist
+The original site publishes a single generated `index.html`. To take its data:
 
-Add it to `data/playlists/<kind>.js`, matching its `kind`. Copy the grouping
-fields (`kind`, `era`, `member`, `unit`, `solo`) from a similar playlist.
+```sh
+git fetch upstream
+git show upstream/main:index.html > /tmp/upstream.html
+NODE_CMD=node python3 scripts/import_legacy.py --html /tmp/upstream.html   # needs Node
+git diff --stat data/                                                       # review, then commit
+```
 
-A new kind needs a new file plus a `<script src="data/playlists/<kind>.js">`
-tag in `index.html`, placed with the other playlist tags. Data scripts must
-stay before the main inline script, and the inline `const PLAYLISTS = []`
-must come before any playlist file.
+The importer replaces `data/` with upstream's data (renaming era playlist ids to album names) and
+refuses to write anything unless converting back reproduces upstream exactly. Changes to
+upstream's page code have to be copied into `index.html` by hand.

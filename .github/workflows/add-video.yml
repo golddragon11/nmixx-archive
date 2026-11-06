@@ -5,6 +5,7 @@ on:
     types: [opened, edited, reopened]
 
 permissions:
+  actions: write
   contents: write
   issues: write
 
@@ -15,7 +16,7 @@ jobs:
   add:
     if: >-
       github.event.issue.state == 'open' &&
-      contains(github.event.issue.body, '### 유튜브 링크') &&
+      contains(github.event.issue.body, '### 링크 / Links') &&
       contains(fromJSON('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.issue.author_association)
     runs-on: ubuntu-latest
     env:
@@ -36,7 +37,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- data .github/ISSUE_TEMPLATE
+          git add -- data
           git commit -m "$MESSAGE" -m "Issue #$ISSUE"
           for attempt in 1 2 3; do
             git pull --rebase && git push && exit 0
@@ -44,12 +45,16 @@ jobs:
           done
           exit 1
 
+      # A push made with the workflow token does not trigger other workflows, so start the deploy here.
+      - name: Deploy site
+        run: gh workflow run pages.yml --ref main
+
       - name: Report success
         env:
           SUMMARY: ${{ steps.add.outputs.summary }}
           COMMIT_URL: ${{ github.server_url }}/${{ github.repository }}/commit
         run: |
-          printf '%s\n\n커밋: %s/%s\n사이트에는 몇 분 안에 반영됩니다.\n' \
+          printf '%s\n\n커밋 / Commit: %s/%s\n사이트에는 몇 분 안에 반영됩니다. / The site updates in a few minutes.\n' \
             "$SUMMARY" "$COMMIT_URL" "$(git rev-parse HEAD)" > comment.md
           gh issue comment "$ISSUE" --body-file comment.md
           gh issue close "$ISSUE" --reason completed
@@ -60,6 +65,6 @@ jobs:
           ERROR: ${{ steps.add.outputs.error }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          printf '%s\n\n실행 기록: %s\n' \
-            "${ERROR:-❌ 처리 중 오류가 발생했습니다. 저장소 관리자에게 알려 주세요.}" "$RUN_URL" > comment.md
+          printf '%s\n\n실행 기록 / Run log: %s\n' \
+            "${ERROR:-❌ 처리 중 오류가 발생했습니다. 저장소 관리자에게 알려 주세요. / Something went wrong; please tell the repository maintainer.}" "$RUN_URL" > comment.md
           gh issue comment "$ISSUE" --body-file comment.md

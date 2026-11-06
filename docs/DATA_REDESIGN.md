@@ -108,9 +108,11 @@ required fields per source (`thumb` for Wavve/Netflix, `url` for non-YouTube).
 ## Tools
 
 - **Issue forms** (Korean + English): one "add video" form for every source — each
-  link line may add `| date | title | thumbnail`; the playlist dropdown includes
-  TikTok series and "standalone TikTok". One "new playlist" form. Edits are plain
-  JSON; no Node or Prettier.
+  link line may add `| date | title | thumbnail`. The playlist is a text field
+  (id, or words from the title/era; ambiguous input gets a list of candidates)
+  because GitHub dropdowns cannot be searched; `add.html` searches all playlists,
+  TikTok series and "TikTok without a series" and opens the form pre-filled.
+  One "new playlist" form. Edits are plain JSON; no Node or Prettier.
 - **`scripts/import_legacy.py`**: converts legacy arrays (from upstream's
   `index.html` or the old `data/*.js`) into the new format, renaming upstream's
   era-numbered playlist ids to album-name ids; used for the migration and for

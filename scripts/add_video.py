@@ -1,103 +1,148 @@
-"""Add YouTube videos or new playlists from GitHub issue forms, or regenerate those forms.
+"""Add videos or new playlists from GitHub issue forms, or regenerate those forms.
 
 Usage:
   ISSUE_BODY=... python3 scripts/add_video.py add
   python3 scripts/add_video.py sync-form
 
-Env: NODE_CMD (default "node"), PRETTIER_CMD (default "npx --yes prettier@3.9.10 --write").
+Each line of the links field is `link | extra | extra | ...`; extras are recognised
+by shape: a date, an image or YouTube link (thumbnail), or anything else (title).
+See docs/DATA_REDESIGN.md for the data format.
 """
 
-import ast
 import datetime
 import hashlib
+import html
 import json
 import os
 import re
-import shlex
 import subprocess
 import sys
+import unicodedata
 import urllib.parse
 import urllib.request
 import uuid
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-TEMPLATES = ROOT / ".github" / "ISSUE_TEMPLATE"
+import nmixx_data as nd
+from validate import validate
+
 KST = datetime.timezone(datetime.timedelta(hours=9))
+TEMPLATES = nd.ROOT / ".github" / "ISSUE_TEMPLATE"
+UA = {"User-Agent": "Mozilla/5.0 (compatible; nmixx-archive)"}
 
 KIND_LABELS = {
-    "live": "라이브", "tv": "방송", "guest": "웹예능 출연", "mv": "MV·퍼포먼스",
-    "nmixxetc": "MIXX 스페셜", "original": "NMIXX Original", "shorts": "쇼츠",
-    "stage": "음악방송", "stagex": "무대 비하인드", "tour": "투어·콘서트", "univx": "대학 축제 비하인드",
+    "live": ("라이브", "Live"), "tv": ("방송", "TV"), "guest": ("웹예능 출연", "Web show"),
+    "mv": ("MV·퍼포먼스", "MV"), "nmixxetc": ("MIXX 스페셜", "Special"),
+    "original": ("NMIXX Original", "Original"), "shorts": ("쇼츠", "Shorts"),
+    "stage": ("음악방송", "Music show"), "stagex": ("무대 비하인드", "Stage behind"),
+    "tour": ("투어·콘서트", "Tour"), "univx": ("대학 축제 비하인드", "Festival behind"),
+    nd.SERIES: ("쇼츠 시리즈", "Shorts series"),
 }
-# Kinds the new-playlist form can create: kind -> (id prefix, default channel or None = first video's)
-NEW_PLAYLIST_KINDS = {
+STANDALONE = "tiktok-standalone"
+NEW_PLAYLIST_KINDS = {  # kind -> (id prefix, default channel; None = first video's)
     "guest": ("g", None), "tv": ("tv", None), "original": ("orig", "NMIXX"),
     "live": ("live", "NMIXX"), "tour": ("tour", "NMIXX"),
 }
-# Era playlists of these kinds leave `channel` empty; their videos omit `ch` when it is NMIXX.
 IMPLIED_CHANNEL = {"shorts": "NMIXX", "mv": "NMIXX", "nmixxetc": "NMIXX"}
-MEMBERS = [("해원", "HAEWON"), ("릴리", "LILY"), ("설윤", "SULLYOON"),
-           ("배이", "BAE"), ("지우", "JIWOO"), ("규진", "KYUJIN")]
-NO_MEMBER = "없음"
-VERTICAL = "세로 영상 (쇼츠)"
-NO_RESPONSE = "_No response_"
+SOURCE_NAMES = {"youtube": "YouTube", "tiktok": "TikTok", "wavve": "Wavve", "tving": "TVING",
+                "netflix": "Netflix"}
+NO_RESPONSE = ("_No response_", "None")
 
-F_PLAYLIST, F_URLS = "재생목록", "유튜브 링크"
-F_DATE, F_TITLE_OPT, F_CHANNEL_OPT = "날짜", "제목 (선택)", "채널 (선택)"
-F_MEMBER, F_OPTIONS = "멤버 (선택)", "옵션"
-F_KIND, F_TITLE, F_DESC = "종류", "제목", "설명 (선택)"
+
+def bi(ko, en):
+    return f"{ko} / {en}"
+
+
+F_TARGET = bi("재생목록", "Playlist")
+F_LINKS = bi("링크", "Links")
+F_DATE = bi("날짜 (선택)", "Date (optional)")
+F_TITLE = bi("제목 (선택)", "Title (optional)")
+F_CHANNEL = bi("채널 (선택)", "Channel (optional)")
+F_MEMBER = bi("멤버 (선택)", "Member (optional)")
+F_ERA = bi("활동 시기 (선택)", "Era (optional)")
+F_OPTIONS = bi("옵션", "Options")
+F_KIND = bi("종류", "Kind")
+F_NEW_TITLE = bi("제목", "Title")
+F_DESC = bi("설명 (선택)", "Description (optional)")
+VERTICAL = bi("세로 영상 (쇼츠)", "Vertical video (Shorts)")
+NONE_OPTION = bi("없음", "None")
+AUTO_OPTION = bi("자동 (날짜 기준)", "Automatic (by date)")
 
 YOUTUBE_ID = re.compile(
     r"(?:youtu\.be/|[?&]v=|/shorts/|/live/|/embed/)([A-Za-z0-9_-]{11})(?![A-Za-z0-9_-])")
+TIKTOK_ID = re.compile(r"tiktok\.com/.*?/video/(\d+)")
+WAVVE_ID = re.compile(r"wavve\.com/.*?contentid=([A-Za-z0-9_.]+)")
+TVING_ID = re.compile(r"tving\.com/(?:player|contents)/(E\d+)")
+NETFLIX_ID = re.compile(r"netflix\.com/(?:[a-z]{2}(?:-[a-z]{2})?/)?(title|watch)/(\d+)")
 DATE = re.compile(r"(\d{4})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})\.?")
 
 
 class InputError(Exception):
-    pass
-
-
-def load_data():
-    """Evaluate the data files the way the browser does.
-
-    Returns every playlist as {id, kind, title, channel, eps: [episode ids], file}.
-    """
-    html = (ROOT / "index.html").read_text(encoding="utf-8")
-    srcs = re.findall(r'<script src="(data/[\w/-]+\.js)"></script>', html)
-    js = ["const PLAYLISTS = [], __files = [];"]
-    for src in srcs:
-        js.append((ROOT / src).read_text(encoding="utf-8"))
-        js.append(f"__files.push([{json.dumps(src)}, PLAYLISTS.length]);")
-    js.append("""
-      let start = 0;
-      const out = [];
-      for (const [file, end] of __files) {
-        PLAYLISTS.slice(start, end).forEach((p) => out.push({
-          id: p.id, kind: p.kind, title: p.title || p.id, channel: p.channel || "",
-          eps: (p.eps || []).map((e) => e.id), file }));
-        start = end;
-      }
-      process.stdout.write(JSON.stringify(out));""")
-    node = shlex.split(os.environ.get("NODE_CMD", "node"))
-    r = subprocess.run(node + ["-"], input="\n".join(js), capture_output=True,
-                       text=True, encoding="utf-8")
-    if r.returncode:
-        raise RuntimeError("data files do not load:\n" + r.stderr[-2000:])
-    return json.loads(r.stdout)
-
-
-def option_label(p):
-    return f"[{KIND_LABELS.get(p['kind'], p['kind'])}] {p['title']} ({p['id']})"
+    def __init__(self, ko, en):
+        super().__init__(f"{ko}\n{en}")
 
 
 # ---------- forms ----------
 
-def yaml_field(ftype, fid, label, description=None, required=False, options=None,
-               placeholder=None, default=None):
+def option_label(p):
+    ko, en = KIND_LABELS.get(p["kind"], (p["kind"], p["kind"]))
+    era = f" · {p['era']}" if p.get("era") else ""
+    return f"[{ko} · {en}] {p['title']}{era} ({p['id']})"
+
+
+def targets(playlists):
+    """Everything a video can be added to: [(id, label)]."""
+    return [(p["id"], option_label(p)) for p in playlists] + [(STANDALONE, standalone_label())]
+
+
+def normalize(text):
+    return re.sub(r"[\s\W_]+", "", unicodedata.normalize("NFKC", text).lower())
+
+
+def find_target(query, playlists):
+    """Resolve the playlist field: a full label, an id, or words from the title/era."""
+    query = query.strip()
+    if m := re.search(r"\(([^()]+)\)\s*$", query):
+        query = m.group(1)
+    options = targets(playlists)
+    exact = [t for t in options if t[0].lower() == query.lower()]
+    if exact:
+        return exact[0][0]
+    words = [normalize(w) for w in query.split() if normalize(w)]
+    hits = [t for t in options if words and all(w in normalize(t[1]) for w in words)]
+    if len(hits) == 1:
+        return hits[0][0]
+    if not hits:
+        raise InputError(f"재생목록을 찾을 수 없습니다: `{query}` — 검색 페이지에서 찾아 보세요.",
+                         f"No playlist matches `{query}` — try the search page.")
+    shown = "\n".join(f"- `{pid}` — {label}" for pid, label in hits[:15])
+    more = f"\n- … {len(hits) - 15}개 더 / {len(hits) - 15} more" if len(hits) > 15 else ""
+    raise InputError(f"`{query}` 에 맞는 재생목록이 {len(hits)}개입니다. 재생목록 칸에 아래 id 중 하나를 넣어 주세요:",
+                     f"{len(hits)} playlists match `{query}`. Put one of these ids in the playlist field:\n{shown}{more}")
+
+
+def search_page_url():
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    if not repo:
+        try:
+            url = subprocess.run(["git", "remote", "get-url", "origin"], cwd=nd.ROOT,
+                                 capture_output=True, text=True).stdout.strip()
+            repo = re.search(r"github\.com[:/](.+?)(?:\.git)?$", url).group(1)
+        except (OSError, AttributeError):
+            return ""
+    owner, name = repo.split("/", 1)
+    return f"https://{owner.lower()}.github.io/{name}/add.html"
+
+
+def standalone_label():
+    return f"[틱톡 · TikTok] 시리즈 없는 틱톡 · TikTok without a series ({STANDALONE})"
+
+
+def field(ftype, fid, label, ko=None, en=None, required=False, options=None, placeholder=None,
+          default=None):
     q = lambda s: json.dumps(s, ensure_ascii=False)
     out = [f"  - type: {ftype}", f"    id: {fid}", "    attributes:", f"      label: {q(label)}"]
-    if description:
-        out.append(f"      description: {q(description)}")
+    if ko:
+        out.append(f"      description: {q(ko + '  ' + chr(10) + en)}")
     if placeholder:
         out.append(f"      placeholder: {q(placeholder)}")
     if options is not None:
@@ -110,61 +155,78 @@ def yaml_field(ftype, fid, label, description=None, required=False, options=None
     return out
 
 
-def form_header(name, description, title, intro):
+def header(name, about, title, intro_ko, intro_en):
     q = lambda s: json.dumps(s, ensure_ascii=False)
-    return [
-        "# Generated by scripts/add_video.py sync-form — edit the script, not this file.",
-        f"name: {q(name)}", f"description: {q(description)}", f"title: {q(title)}", "body:",
-        "  - type: markdown", "    attributes:", f"      value: {q(intro)}",
-    ]
+    return ["# Generated by scripts/add_video.py sync-form — edit the script, not this file.",
+            f"name: {q(name)}", f"description: {q(about)}", f"title: {q(title)}", "body:",
+            "  - type: markdown", "    attributes:",
+            f"      value: {q(intro_ko + chr(10) + chr(10) + intro_en)}"]
 
 
-LINKS_HELP = ("한 줄에 하나씩 붙여 넣으세요. 날짜가 다르면 링크 뒤에 적으세요. "
-              "예: https://youtu.be/abc 2024-05-01")
-DATE_HELP = "링크 뒤에 날짜가 없는 영상에 쓰입니다. 예: 2026-11-05. 비워 두면 오늘 날짜(한국 시간)."
+LINKS_KO = ("한 줄에 영상 하나. 링크 뒤에 `|` 로 날짜·제목·썸네일을 붙일 수 있습니다. "
+            "유튜브는 제목이 자동이고, 틱톡·웨이브·티빙·넷플릭스는 제목이 필요합니다. "
+            "웨이브·넷플릭스는 썸네일(이미지 주소나 유튜브 링크)도 필요합니다.")
+LINKS_EN = ("One video per line. After the link you can add `|` date, title, thumbnail. "
+            "YouTube titles are automatic; TikTok, Wavve, TVING and Netflix need a title. "
+            "Wavve and Netflix also need a thumbnail (an image URL or a YouTube link).")
+LINKS_EXAMPLE = ("https://youtu.be/abc123def45\n"
+                 "https://www.wavve.com/player/vod?contentid=… | 2026-11-04 | 988회 · 특집 | https://image.wavve.com/….jpg")
 
 
-def sync_form(playlists=None):
-    playlists = playlists or load_data()
-    options = [option_label(p) for p in playlists]
-    member_opts = [NO_MEMBER] + [f"{ko} ({en})" for ko, en in MEMBERS]
+def sync_form(data=None):
+    albums, members, videos, playlists = data or nd.load()
+    search = search_page_url()
+    search_ko = f" 목록에서 찾기: {search}" if search else ""
+    search_en = f" Search the list: {search}" if search else ""
+    member_opts = [NONE_OPTION] + [f"{ko} ({code})" for code, ko in members.items() if code != "NMIXX"]
+    era_opts = [AUTO_OPTION] + [a["name"] for a in reversed(albums)] + [nd.PRE_DEBUT]
 
-    video = form_header(
-        "새 영상 추가", "재생목록에 유튜브 영상을 추가합니다. 제출하면 자동으로 사이트에 반영됩니다.",
+    video = header(
+        "새 영상 추가 / Add videos",
+        "재생목록에 영상을 추가합니다 / Add videos to a playlist (YouTube, TikTok, Wavve, TVING, Netflix)",
         "[새 영상] ",
-        "재생목록을 고르고 유튜브 링크를 붙여 넣은 뒤 제출하세요. 제목과 채널은 비워 두면 유튜브에서 자동으로 가져옵니다.")
-    video += yaml_field("dropdown", "playlist", F_PLAYLIST, required=True, options=options)
-    video += yaml_field("textarea", "urls", F_URLS, LINKS_HELP, required=True,
-                        placeholder="https://youtu.be/...")
-    video += yaml_field("input", "date", F_DATE, DATE_HELP)
-    video += yaml_field("input", "title", F_TITLE_OPT,
-                        "비워 두면 유튜브 제목을 그대로 씁니다. 영상이 1개일 때만 적용됩니다.")
-    video += yaml_field("input", "channel", F_CHANNEL_OPT, "비워 두면 유튜브 채널 이름을 씁니다.")
-    video += yaml_field("dropdown", "member", F_MEMBER, "멤버 솔로 영상이면 선택하세요. 모든 링크에 적용됩니다.",
-                        options=member_opts, default=0)
+        "재생목록을 고르고 링크를 붙여 넣은 뒤 제출하세요. 제출하면 자동으로 사이트에 반영됩니다.",
+        "Pick a playlist, paste the links and submit. The site updates automatically.")
+    video += field("input", "playlist", F_TARGET,
+                   "재생목록 id나 이름 일부를 입력하세요 (예: 월간, radio star, shorts strange muse)." + search_ko,
+                   "Type the playlist id or part of its name (e.g. 월간, radio star, shorts strange muse)." + search_en,
+                   required=True)
+    video += field("textarea", "links", F_LINKS, LINKS_KO, LINKS_EN, required=True, placeholder=LINKS_EXAMPLE)
+    video += field("input", "date", F_DATE, "링크 뒤에 날짜가 없는 영상에 쓰입니다. 비워 두면 오늘(한국 시간). 예: 2026-11-05",
+                   "Used for links without their own date. Blank = today (Korea time). e.g. 2026-11-05")
+    video += field("input", "title", F_TITLE, "영상이 1개일 때만 적용됩니다.", "Only used when there is one video.")
+    video += field("input", "channel", F_CHANNEL, "비워 두면 유튜브 채널 이름을 씁니다.", "Blank = the YouTube channel name.")
+    video += field("dropdown", "member", F_MEMBER, "멤버 솔로 영상이면 선택하세요. 모든 링크에 적용됩니다.",
+                   "Pick a member for solo videos. Applies to every link.", options=member_opts, default=0)
+    video += field("dropdown", "era", F_ERA, "시리즈 없는 틱톡에만 쓰입니다. 발매 전 티저는 다음 앨범을 고르세요.",
+                   "Only for TikToks without a series. For pre-release teasers pick the upcoming album.",
+                   options=era_opts, default=0)
     video += ["  - type: checkboxes", "    id: options", "    attributes:",
               f"      label: {json.dumps(F_OPTIONS, ensure_ascii=False)}", "      options:",
               f"        - label: {json.dumps(VERTICAL, ensure_ascii=False)}"]
 
-    kinds = [f"{KIND_LABELS[k]} ({k})" for k in NEW_PLAYLIST_KINDS]
-    playlist = form_header(
-        "새 재생목록 추가", "새 재생목록을 만들고 영상을 넣습니다. 제출하면 자동으로 사이트에 반영됩니다.",
+    kinds = [f"{KIND_LABELS[k][0]} · {KIND_LABELS[k][1]} ({k})" for k in NEW_PLAYLIST_KINDS]
+    playlist = header(
+        "새 재생목록 추가 / New playlist",
+        "새 재생목록을 만들고 영상을 넣습니다 / Create a playlist with its first videos",
         "[새 재생목록] ",
-        "이미 있는 재생목록에 영상을 넣을 때는 '새 영상 추가'를 쓰세요. "
-        "재생목록은 영상이 1개 이상 있어야 사이트에 보입니다.")
-    playlist += yaml_field("dropdown", "kind", F_KIND, required=True, options=kinds)
-    playlist += yaml_field("input", "title", F_TITLE, "사이트에 보일 재생목록 이름", required=True)
-    playlist += yaml_field("input", "channel", F_CHANNEL_OPT,
-                           "비워 두면 라이브·NMIXX Original·투어는 NMIXX, 웹예능·방송은 첫 영상의 유튜브 채널 이름.")
-    playlist += yaml_field("textarea", "desc", F_DESC, "재생목록 소개 문구")
-    playlist += yaml_field("textarea", "urls", F_URLS, LINKS_HELP, required=True,
-                           placeholder="https://youtu.be/...")
-    playlist += yaml_field("input", "date", F_DATE, DATE_HELP)
+        "이미 있는 재생목록에 넣을 때는 '새 영상 추가'를 쓰세요. 영상이 1개 이상 있어야 사이트에 보입니다.",
+        "To add to an existing playlist use 'Add videos'. A playlist needs at least one video to show.")
+    playlist += field("dropdown", "kind", F_KIND, required=True, options=kinds)
+    playlist += field("input", "title", F_NEW_TITLE, "사이트에 보일 재생목록 이름", "Playlist name shown on the site",
+                      required=True)
+    playlist += field("input", "channel", F_CHANNEL,
+                      "비워 두면 라이브·NMIXX Original·투어는 NMIXX, 웹예능·방송은 첫 영상의 유튜브 채널.",
+                      "Blank = NMIXX for live, original and tour; the first video's YouTube channel otherwise.")
+    playlist += field("textarea", "desc", F_DESC, "재생목록 소개 문구", "Short description of the playlist")
+    playlist += field("textarea", "links", F_LINKS, LINKS_KO, LINKS_EN, required=True, placeholder=LINKS_EXAMPLE)
+    playlist += field("input", "date", F_DATE, "링크 뒤에 날짜가 없는 영상에 쓰입니다. 비워 두면 오늘(한국 시간).",
+                      "Used for links without their own date. Blank = today (Korea time).")
 
     TEMPLATES.mkdir(parents=True, exist_ok=True)
     (TEMPLATES / "add-video.yml").write_text("\n".join(video) + "\n", encoding="utf-8")
     (TEMPLATES / "add-playlist.yml").write_text("\n".join(playlist) + "\n", encoding="utf-8")
-    print(f"issue forms: {len(options)} playlists")
+    print("issue forms written")
 
 
 # ---------- parsing ----------
@@ -181,167 +243,201 @@ def parse_issue(body):
     out = {}
     for k, v in sections.items():
         text = "\n".join(v).strip()
-        out[k] = "" if text in (NO_RESPONSE, "None") else text
+        out[k] = "" if text in NO_RESPONSE else text
     return out
 
 
 def parse_date(text):
     m = DATE.fullmatch(text.strip())
     if not m:
-        raise InputError(f"날짜 형식을 알 수 없습니다: `{text}` (예: 2026-11-05)")
+        raise InputError(f"날짜 형식을 알 수 없습니다: `{text}` (예: 2026-11-05)",
+                         f"Unrecognised date: `{text}` (e.g. 2026-11-05)")
     try:
         return datetime.date(*map(int, m.groups())).isoformat()
     except ValueError:
-        raise InputError(f"존재하지 않는 날짜입니다: `{text}`")
+        raise InputError(f"존재하지 않는 날짜입니다: `{text}`", f"That date does not exist: `{text}`")
 
 
-def default_date(text):
-    return parse_date(text) if text else datetime.datetime.now(KST).date().isoformat()
+def today():
+    return datetime.datetime.now(KST).date().isoformat()
+
+
+def identify(url):
+    """Return (source, video id, canonical url) for a supported link."""
+    if m := YOUTUBE_ID.search(url):
+        return "youtube", m.group(1), None
+    if re.match(r"^[A-Za-z0-9_-]{11}$", url):
+        return "youtube", url, None
+    if "vt.tiktok.com" in url or "vm.tiktok.com" in url:
+        url = resolve_redirect(url)
+    if m := TIKTOK_ID.search(url):
+        return "tiktok", m.group(1), None
+    if m := WAVVE_ID.search(url):
+        cid = m.group(1)
+        return "wavve", "wv-" + re.sub(r"\.\d+$", "", cid), \
+            f"https://www.wavve.com/player/stream/vod?contentid={cid}"
+    if m := TVING_ID.search(url):
+        return "tving", "tv-" + m.group(1), f"https://www.tving.com/player/{m.group(1)}"
+    if m := NETFLIX_ID.search(url):
+        return "netflix", "nf-" + m.group(2), f"https://www.netflix.com/{m.group(1)}/{m.group(2)}"
+    raise InputError(f"지원하지 않는 링크입니다: `{url}` (유튜브·틱톡·웨이브·티빙·넷플릭스만 가능)",
+                     f"Unsupported link: `{url}` (YouTube, TikTok, Wavve, TVING and Netflix only)")
 
 
 def parse_links(text, fallback_date):
-    """One link per line, optionally followed by a date. Returns [(video id, is_short, date)]."""
-    links, bad = [], []
+    """Return [{source, id, url, date, title, thumb, short}] in the order given."""
+    out = []
     for line in filter(None, (l.strip() for l in text.split("\n"))):
-        m = YOUTUBE_ID.search(line) or re.match(r"^([A-Za-z0-9_-]{11})(?:\s|$)", line)
-        if not m:
-            bad.append(line)
-            continue
-        rest = line[m.end():]
-        rest = rest[rest.find(" "):] if " " in rest else ""
-        links.append((m.group(1), "/shorts/" in line,
-                      parse_date(rest.strip()) if rest.strip() else fallback_date))
-    if bad:
-        raise InputError("유튜브 링크로 인식하지 못했습니다:\n" + "\n".join(f"- `{b}`" for b in bad))
-    if len({i for i, _, _ in links}) != len(links):
-        raise InputError("같은 링크가 두 번 들어 있습니다.")
-    return links
+        parts = [p.strip() for p in line.split("|")]
+        head = parts[0].split()
+        link, extras = head[0], [" ".join(head[1:])] + parts[1:]
+        source, vid, url = identify(link)
+        item = {"source": source, "id": vid, "url": url, "date": fallback_date, "title": "",
+                "thumb": "", "short": "/shorts/" in link}
+        for extra in filter(None, extras):
+            if DATE.fullmatch(extra):
+                item["date"] = parse_date(extra)
+            elif re.match(r"^https?://", extra):
+                yt = YOUTUBE_ID.search(extra)
+                item["thumb"] = f"https://i.ytimg.com/vi/{yt.group(1)}/mqdefault.jpg" if yt else extra
+            else:
+                item["title"] = extra
+        out.append(item)
+    if not out:
+        raise InputError("링크를 1개 이상 넣어 주세요.", "Please add at least one link.")
+    ids = [i["id"] for i in out]
+    if len(set(ids)) != len(ids):
+        raise InputError("같은 영상이 두 번 들어 있습니다.", "The same video is listed twice.")
+    return out
+
+
+# ---------- fetching ----------
+
+def fetch(url, timeout=20):
+    with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout) as r:
+        return r.read().decode("utf-8", "replace")
+
+
+def resolve_redirect(url):
+    try:
+        with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=20) as r:
+            return r.geturl()
+    except Exception:
+        return url
 
 
 def youtube_info(vid):
     url = "https://www.youtube.com/oembed?format=json&url=" + urllib.parse.quote(
         f"https://www.youtube.com/watch?v={vid}", safe="")
     try:
-        with urllib.request.urlopen(url, timeout=20) as r:
-            d = json.load(r)
+        d = json.loads(fetch(url))
         return d.get("title", ""), d.get("author_name", "")
     except Exception as e:
-        raise InputError(f"유튜브에서 영상 정보를 가져오지 못했습니다: `{vid}` ({e}). "
-                         "비공개·삭제된 영상이 아닌지 확인해 주세요.")
+        raise InputError(f"유튜브에서 영상 정보를 가져오지 못했습니다: `{vid}` ({e}). 비공개·삭제된 영상인지 확인해 주세요.",
+                         f"Could not read video info from YouTube: `{vid}` ({e}). Is it private or deleted?")
 
 
-def build_episodes(links, channel, title_override="", channel_override="", member=None,
-                   vertical=False):
-    eps = []
-    for vid, is_short, date in links:
-        yt_title, yt_channel = youtube_info(vid)
-        ep = {"id": vid, "title": title_override or yt_title, "date": date}
+def tving_thumb(episode):
+    try:
+        page = fetch(f"https://www.tving.com/contents/{episode}")
+    except Exception:
+        return ""
+    m = re.search(r'"episode_image":\[\{"url":"([^"]+)"', page)
+    return "https://image.tving.com" + html.unescape(m.group(1)).replace("\\u002F", "/") if m else ""
+
+
+# ---------- building records ----------
+
+def era_for(date, albums):
+    for a in reversed(albums):
+        if a["date"] <= date:
+            return a["name"]
+    return nd.PRE_DEBUT
+
+
+def new_video(item, *, title_override, channel_override, playlist_channel, member, vertical):
+    source = item["source"]
+    v = {"source": source, "title": item["title"] or title_override, "date": item["date"]}
+    name = SOURCE_NAMES[source]
+    if source == "youtube":
+        yt_title, yt_channel = youtube_info(item["id"])
+        v["title"] = v["title"] or yt_title
         ch = channel_override or yt_channel
-        if ch and ch != channel:
-            ep["ch"] = ch
-        if vertical or is_short:
-            ep["v"] = 1
-        if member:
-            ep["m"] = member
-        eps.append(ep)
-    return eps
+        if ch and ch != playlist_channel:
+            v["channel"] = ch
+    elif not v["title"]:
+        raise InputError(f"{name} 영상은 제목이 필요합니다: `{item['id']}` (링크 뒤에 `| 제목` 을 붙여 주세요)",
+                         f"{name} videos need a title: `{item['id']}` (add `| title` after the link)")
+    if source in nd.SOURCE_LABELS:
+        v["url"] = item["url"]
+        thumb = item["thumb"] or (tving_thumb(item["id"][3:]) if source == "tving" else "")
+        if not thumb:
+            raise InputError(f"{name} 영상은 썸네일이 필요합니다: `{item['id']}` (이미지 주소나 유튜브 링크를 `|` 뒤에)",
+                             f"{name} videos need a thumbnail: `{item['id']}` (an image URL or YouTube link after `|`)")
+        v["thumb"] = thumb
+        if channel_override:
+            v["channel"] = channel_override
+    if vertical or item["short"]:
+        v["vertical"] = True
+    if member:
+        v["members"] = [member]
+    return v
 
 
-# ---------- file edits ----------
-
-def episode_lines(ep, indent):
-    lines = [indent + "{"]
-    for k, v in ep.items():
-        lines.append(f"{indent}  {k}: {json.dumps(v, ensure_ascii=False)},")
-    return lines + [indent + "},"]
-
-
-def insert_episodes(path, pid, eps):
-    """Insert episodes into the playlist's eps list, keeping it in date order."""
-    lines = path.read_text(encoding="utf-8").split("\n")
-    starts = [(len(m.group(1)), n) for n, l in enumerate(lines)
-              if (m := re.match(rf'^(\s*)id: "{re.escape(pid)}",$', l))]
-    indent, start = min(starts)
-    pad = " " * indent
-    eps_open = next(n for n in range(start, len(lines)) if lines[n] == pad + "eps: [")
-    eps_close = next(n for n in range(eps_open, len(lines)) if lines[n] == pad + "],")
-    ep_pad = pad + "  "
-    existing, date = [], ""  # (closing line index, date) per episode
-    for n in range(eps_open + 1, eps_close):
-        m = re.match(rf"^{ep_pad}  date: (.+)$", lines[n])
-        if m:
-            date = ast.literal_eval(m.group(1).rstrip(","))
-        elif lines[n] == ep_pad + "},":
-            existing.append((n, date))
-            date = ""
-    for ep in sorted(eps, key=lambda e: e["date"]):
-        after = max((n for n, d in existing if d <= ep["date"]), default=eps_open)
-        block = episode_lines(ep, ep_pad)
-        lines[after + 1:after + 1] = block
-        existing = [(n + len(block) if n > after else n, d) for n, d in existing]
-        existing.append((after + len(block), ep["date"]))
-    path.write_text("\n".join(lines), encoding="utf-8")
-
-
-def append_playlist(path, playlist):
-    """Append a playlist object to a PLAYLISTS.push(...) file; Prettier tidies the layout."""
-    text = path.read_text(encoding="utf-8").rstrip()
-    if not text.endswith(");"):
-        raise RuntimeError(f"{path} does not end with ');'")
-    text = text[:-2].rstrip()
-    if not text.endswith(","):
-        text += ","
-    obj = json.dumps(playlist, ensure_ascii=False, indent=2)
-    path.write_text(f"{text}\n{obj},\n);\n", encoding="utf-8")
-
-
-def run_prettier(files):
-    prettier = shlex.split(os.environ.get("PRETTIER_CMD", "npx --yes prettier@3.9.10 --write"))
-    subprocess.run(prettier + sorted(files), cwd=ROOT, check=True)
-
-
-def verify(before, after, expected):
-    """expected: {playlist id: [new episode ids]}; playlists missing from `before` are new."""
-    assert set(after) == set(before) | set(expected), "unexpected playlists added or removed"
-    for pid, p in after.items():
-        old = before[pid]["eps"] if pid in before else []
-        new = set(expected.get(pid, []))
-        assert [i for i in p["eps"] if i not in new] == old, f"{pid}: existing videos changed"
-        assert len(p["eps"]) == len(old) + len(new), f"{pid}: not every video was added"
+def insert_by_date(ids, vid, date, videos):
+    pos = max((n + 1 for n, i in enumerate(ids) if videos[i]["date"] <= date), default=0)
+    ids.insert(pos, vid)
 
 
 # ---------- commands ----------
 
-def add_videos(form, before):
-    m = re.search(r"\(([^()]+)\)\s*$", form.get(F_PLAYLIST, ""))
-    if not m:
-        raise InputError("재생목록을 선택해 주세요.")
-    if m.group(1) not in before:
-        raise InputError(f"재생목록을 찾을 수 없습니다: `{m.group(1)}`")
-    p = before[m.group(1)]
-    links = parse_links(form.get(F_URLS, ""), default_date(form.get(F_DATE, "")))
-    if not links:
-        raise InputError("유튜브 링크를 1개 이상 넣어 주세요.")
-    title_override = form.get(F_TITLE_OPT, "")
-    if title_override and len(links) > 1:
-        raise InputError("영상이 여러 개일 때는 제목을 비워 두세요. (각 영상의 유튜브 제목을 씁니다)")
-    dupes = [i for i, _, _ in links if i in p["eps"]]
-    if dupes:
-        raise InputError("이미 이 재생목록에 있는 영상입니다: " + ", ".join(f"`{d}`" for d in dupes))
-    member = re.search(r"\(([A-Z]+)\)", form.get(F_MEMBER, ""))
+def add_videos(form, data):
+    albums, members, videos, playlists = data
+    if not form.get(F_TARGET, "").strip():
+        raise InputError("재생목록을 입력해 주세요.", "Please enter a playlist.")
+    target = find_target(form[F_TARGET], playlists)
+    playlist = next((p for p in playlists if p["id"] == target), None)
+
+    items = parse_links(form.get(F_LINKS, ""), parse_date(form[F_DATE]) if form.get(F_DATE) else today())
+    title_override = form.get(F_TITLE, "")
+    if title_override and len(items) > 1:
+        raise InputError("영상이 여러 개일 때는 제목 칸을 비우고 링크 뒤에 `| 제목` 을 쓰세요.",
+                         "With several videos leave the title field blank and add `| title` after each link.")
+    member_m = re.search(r"\(([A-Z]+)\)", form.get(F_MEMBER, ""))
+    member = member_m.group(1) if member_m else None
     vertical = f"- [x] {VERTICAL}".lower() in form.get(F_OPTIONS, "").lower()
+    era_choice = form.get(F_ERA, "")
 
-    channel = p["channel"] or IMPLIED_CHANNEL.get(p["kind"], "")
-    eps = build_episodes(links, channel, title_override, form.get(F_CHANNEL_OPT, ""),
-                         member and member.group(1), vertical)
-    insert_episodes(ROOT / p["file"], p["id"], eps)
-    run_prettier({p["file"]})
-    verify(before, {q["id"]: q for q in load_data()}, {p["id"]: [e["id"] for e in eps]})
+    kind = playlist["kind"] if playlist else STANDALONE
+    allowed = {nd.SERIES: {"youtube", "tiktok"}, STANDALONE: {"tiktok"}}.get(kind, {"youtube", *nd.SOURCE_LABELS})
+    channel = (playlist or {}).get("channel") or IMPLIED_CHANNEL.get(kind, "")
+    added = []
+    for item in items:
+        if item["source"] not in allowed:
+            raise InputError(
+                f"{SOURCE_NAMES[item['source']]} 영상은 이 재생목록에 넣을 수 없습니다: `{item['id']}`",
+                f"{SOURCE_NAMES[item['source']]} videos cannot go into this playlist: `{item['id']}`")
+        vid = item["id"]
+        if kind == STANDALONE:
+            if "era" in videos.get(vid, {}):
+                raise InputError(f"이미 등록된 틱톡입니다: `{vid}`", f"This TikTok is already listed: `{vid}`")
+        elif vid in playlist["videos"]:
+            raise InputError(f"이미 이 재생목록에 있는 영상입니다: `{vid}`", f"Already in this playlist: `{vid}`")
+        if vid not in videos:
+            videos[vid] = new_video(item, title_override=title_override,
+                                    channel_override=form.get(F_CHANNEL, ""), playlist_channel=channel,
+                                    member=member, vertical=vertical)
+        if kind == STANDALONE:
+            era = era_choice if era_choice and era_choice != AUTO_OPTION else era_for(videos[vid]["date"], albums)
+            videos[vid]["era"] = era
+        else:
+            insert_by_date(playlist["videos"], vid, videos[vid]["date"], videos)
+        added.append(vid)
 
-    today = datetime.datetime.now(KST).date().isoformat()
-    summary = [f"✅ **{option_label(p)}** 에 {len(eps)}개 추가했습니다.", ""]
-    summary += [episode_summary(e) for e in eps]
-    return f"새 영상 {len(eps)}개 추가 ({today})", "\n".join(summary)
+    where = standalone_label() if kind == STANDALONE else option_label(playlist)
+    summary = [f"✅ **{where}** 에 {len(added)}개 추가했습니다. / Added {len(added)}.", ""]
+    summary += [video_line(vid, videos[vid]) for vid in added]
+    return f"새 영상 {len(added)}개 추가 ({today()})", "\n".join(summary)
 
 
 def make_playlist_id(prefix, title, first_video, taken):
@@ -349,59 +445,74 @@ def make_playlist_id(prefix, title, first_video, taken):
     digest = hashlib.sha1(f"{prefix}|{title}|{first_video}".encode()).hexdigest()[:6]
     pid = f"{prefix}-{slug}-{digest}" if slug else f"{prefix}-{digest}"
     if pid in taken:
-        raise InputError(f"재생목록 id가 겹칩니다: `{pid}`. 제목을 조금 바꿔 주세요.")
+        raise InputError(f"재생목록 id가 겹칩니다: `{pid}`. 제목을 조금 바꿔 주세요.",
+                         f"Playlist id already exists: `{pid}`. Please change the title slightly.")
     return pid
 
 
-def add_playlist(form, before):
+def add_playlist(form, data):
+    albums, members, videos, playlists = data
     m = re.search(r"\(([a-z]+)\)\s*$", form.get(F_KIND, ""))
     if not m or m.group(1) not in NEW_PLAYLIST_KINDS:
-        raise InputError("재생목록 종류를 선택해 주세요.")
+        raise InputError("재생목록 종류를 선택해 주세요.", "Please choose a playlist kind.")
     kind = m.group(1)
     prefix, default_channel = NEW_PLAYLIST_KINDS[kind]
-    title = form.get(F_TITLE, "").strip()
+    title = form.get(F_NEW_TITLE, "").strip()
     if not title:
-        raise InputError("재생목록 제목을 입력해 주세요.")
-    same = [p for p in before.values() if p["kind"] == kind and p["title"] == title]
+        raise InputError("재생목록 제목을 입력해 주세요.", "Please enter a playlist title.")
+    same = next((p for p in playlists if p["kind"] == kind and p["title"] == title), None)
     if same:
-        raise InputError(f"같은 이름의 재생목록이 이미 있습니다: `{same[0]['id']}`. "
-                         "그 재생목록에 영상을 넣으려면 '새 영상 추가' 양식을 쓰세요.")
-    links = parse_links(form.get(F_URLS, ""), default_date(form.get(F_DATE, "")))
-    if not links:
-        raise InputError("유튜브 링크를 1개 이상 넣어 주세요.")
+        raise InputError(f"같은 이름의 재생목록이 이미 있습니다: `{same['id']}`. 영상을 넣으려면 '새 영상 추가'를 쓰세요.",
+                         f"A playlist with this name exists: `{same['id']}`. Use 'Add videos' to add to it.")
+    items = parse_links(form.get(F_LINKS, ""), parse_date(form[F_DATE]) if form.get(F_DATE) else today())
+    for item in items:
+        if item["source"] == "tiktok":
+            raise InputError("틱톡은 이 종류의 재생목록에 넣을 수 없습니다.", "TikToks cannot go into this kind of playlist.")
 
-    channel = form.get(F_CHANNEL_OPT, "").strip() or default_channel or youtube_info(links[0][0])[1]
-    pid = make_playlist_id(prefix, title, links[0][0], before)
-    eps = sorted(build_episodes(links, channel), key=lambda e: e["date"])
-    playlist = {"id": pid, "kind": kind, "title": title, "channel": channel}
+    channel = form.get(F_CHANNEL, "").strip() or default_channel
+    if not channel:
+        first = items[0]
+        channel = youtube_info(first["id"])[1] if first["source"] == "youtube" else SOURCE_NAMES[first["source"]]
+    pid = make_playlist_id(prefix, title, items[0]["id"], {p["id"] for p in playlists})
+    p = {"id": pid, "kind": kind, "title": title, "channel": channel}
     if form.get(F_DESC, "").strip():
-        playlist["desc"] = form[F_DESC].strip()
-    playlist["eps"] = eps
+        p["desc"] = form[F_DESC].strip()
+    p["videos"] = []
+    for item in items:
+        if item["id"] not in videos:
+            videos[item["id"]] = new_video(item, title_override="", channel_override="",
+                                           playlist_channel=channel, member=None, vertical=False)
+        insert_by_date(p["videos"], item["id"], videos[item["id"]]["date"], videos)
+    last_same_kind = max((n for n, q in enumerate(playlists) if q["kind"] == kind), default=len(playlists) - 1)
+    playlists.insert(last_same_kind + 1, p)
 
-    file = f"data/playlists/{kind}.js"
-    append_playlist(ROOT / file, playlist)
-    run_prettier({file})
-    after = {p["id"]: p for p in load_data()}
-    verify(before, after, {pid: [e["id"] for e in eps]})
-    sync_form(list(after.values()))
-
-    summary = [f"✅ 새 재생목록 **{option_label(playlist)}** 을 만들고 영상 {len(eps)}개를 넣었습니다.", ""]
-    summary += [episode_summary(e) for e in eps]
-    summary += ["", "'새 영상 추가' 양식의 재생목록 목록에도 추가했습니다."]
-    return f"새 재생목록 추가: {title} (영상 {len(eps)}개)", "\n".join(summary)
+    summary = [f"✅ 새 재생목록 **{option_label(p)}** 을 만들고 영상 {len(items)}개를 넣었습니다. / "
+               f"Created with {len(items)} videos.", ""]
+    summary += [video_line(i, videos[i]) for i in p["videos"]]
+    summary += ["", "'새 영상 추가' 양식의 목록에도 추가했습니다. / Added to the 'Add videos' form."]
+    return f"새 재생목록 추가: {title} (영상 {len(items)}개)", "\n".join(summary)
 
 
-def episode_summary(e):
-    return (f"- {e['date']} · {e['title']}" + (f" · {e['ch']}" if "ch" in e else "")
-            + (" · 세로" if e.get("v") else "") + (f" · {e['m']}" if "m" in e else "")
-            + f" — https://youtu.be/{e['id']}")
+def video_line(vid, v):
+    link = v.get("url") or (f"https://www.tiktok.com/video/{vid}" if v["source"] == "tiktok"
+                            else f"https://youtu.be/{vid}")
+    extras = [v["date"], v["title"], v.get("channel"), "세로" if v.get("vertical") else None,
+              ",".join(v.get("members", [])) or None, v.get("era")]
+    return "- " + " · ".join(filter(None, extras)) + f" — {link}"
 
 
 def add():
     form = parse_issue(os.environ["ISSUE_BODY"])
-    before = {p["id"]: p for p in load_data()}
+    data = nd.load()
     handler = add_playlist if F_KIND in form else add_videos
-    message, summary = handler(form, before)
+    message, summary = handler(form, data)
+    errors = validate(*data, check_files=False)
+    if errors:
+        raise RuntimeError("validation failed:\n" + "\n".join(errors))
+    nd.save(*data)
+    errors = validate(*nd.load())
+    if errors:
+        raise RuntimeError("validation failed after saving:\n" + "\n".join(errors))
     write_outputs(commit_message=message, summary=summary)
 
 
@@ -425,7 +536,8 @@ def main():
     try:
         add()
     except InputError as e:
-        write_outputs(error=f"❌ {e}\n\n이슈 내용을 수정하면 자동으로 다시 시도합니다.")
+        write_outputs(error=f"❌ {e}\n\n이슈 내용을 수정하면 자동으로 다시 시도합니다. / "
+                            "Edit the issue to try again automatically.")
         sys.exit(1)
 
 
