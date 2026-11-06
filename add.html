@@ -49,6 +49,9 @@
   .results li:last-child button { border-bottom: 0; }
   .results button:hover, .results button:focus { background: var(--elev); outline: none; }
   .id { display: block; font-size: 12px; color: var(--dim); }
+  .chips { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .chips:not(:empty) { margin-bottom: 8px; }
+  #suggestBox { margin: 0 0 8px; font-size: 14px; }
   .picked { display: flex; justify-content: space-between; gap: 12px; align-items: center;
             padding: 10px 12px; background: var(--elev); border: 1px solid var(--line); border-radius: 6px; }
   .link-btn { color: var(--accent); white-space: nowrap; }
@@ -100,10 +103,8 @@
   <section id="pane-video">
     <fieldset>
       <legend data-t="playlist"></legend>
-      <div id="pickedBox" hidden class="picked">
-        <span><span id="pickedLabel"></span><span class="id" id="pickedId"></span></span>
-        <button class="link-btn" id="unpick" data-t="change"></button>
-      </div>
+      <ul class="chips" id="chips"></ul>
+      <p id="suggestBox" hidden><button class="link-btn" id="suggest" type="button"></button></p>
       <div id="searchBox">
         <input id="q" type="search" data-t-ph="searchPh" autocomplete="off">
         <ul class="results" id="results"></ul>
@@ -167,7 +168,8 @@ const TEXT = {
     heading: "영상 추가", tabVideo: "영상 추가", tabPlaylist: "새 재생목록",
     intro: "여기서 모두 입력하고 버튼을 누르면 내용이 채워진 GitHub 이슈가 열립니다. 거기서 <b>Create</b> 만 누르세요.",
     collabNote: "⚠️ 저장소 <b>주인과 협업자(Collaborator)</b> 가 만든 이슈만 봇이 처리합니다. 다른 사람이 만든 이슈는 무시되니, 영상 추가는 협업자만 해 주세요.",
-    playlist: "재생목록", change: "바꾸기", searchPh: "검색: 월간, radio star, shorts strange muse",
+    playlist: "재생목록 (여러 개 가능)", remove: "빼기", searchPh: "검색해서 추가: 월간, radio star, shorts strange muse",
+    suggest: (n) => `+ 함께 추가: ${n}`,
     links: "링크", firstLinks: "첫 영상 링크",
     linksHint: "한 줄에 영상 하나: <code>링크 | 제목 | 날짜 | 썸네일</code> — 출처마다 필요한 칸만 쓰면 됩니다 (아래 안내).",
     linksPh: "https://youtu.be/abc123def45\nhttps://www.tiktok.com/@nmixx_official/video/7704213048080207122 | 𝑵𝑬𝑶𝑵 🐶〃🐱\nhttps://www.wavve.com/player/vod?contentid=… | 988회 · 특집 | 2026-11-04 | https://image.wavve.com/….jpg",
@@ -197,7 +199,7 @@ const TEXT = {
     linksToFix: (n) => `링크 ${n}개를 고쳐야 합니다`, more: (n) => `+${n}`,
     unsupported: "지원하지 않는 링크", invalidDate: (d) => `없는 날짜: ${d}`,
     wrongSource: (s) => `${s} 영상은 이 재생목록에 넣을 수 없음`, twice: "같은 영상이 두 번",
-    inPlaylist: "이미 이 재생목록에 있음",
+    inPlaylist: (n) => `이미 '${n}'에 있음`,
     existing: "이미 있는 영상 — 저장된 제목·날짜를 그대로 씀", needTitle: "제목 필요 ( | 제목 )",
     needDate: "날짜 필요 ( | 2026-11-04 )", autoDate: "날짜는 자동", ytAuto: "제목·날짜는 유튜브에서 자동",
     needThumb: "썸네일 필요 (이미지나 유튜브 링크)", tvingThumb: "썸네일은 자동으로 가져옴",
@@ -207,7 +209,8 @@ const TEXT = {
     heading: "Add videos", tabVideo: "Add videos", tabPlaylist: "New playlist",
     intro: "Fill in everything here; the button opens a GitHub issue that is already filled in — just press <b>Create</b>.",
     collabNote: "⚠️ The bot only processes issues created by the repository <b>owner and collaborators</b>. Issues from anyone else are ignored, so only collaborators should add videos.",
-    playlist: "Playlist", change: "Change", searchPh: "Search: 월간, radio star, shorts strange muse",
+    playlist: "Playlists (one or more)", remove: "Remove", searchPh: "Search to add: 월간, radio star, shorts strange muse",
+    suggest: (n) => `+ Also add to: ${n}`,
     links: "Links", firstLinks: "First video links",
     linksHint: "One video per line: <code>link | title | date | thumbnail</code> — only the parts each source needs (see below).",
     linksPh: "https://youtu.be/abc123def45\nhttps://www.tiktok.com/@nmixx_official/video/7704213048080207122 | 𝑵𝑬𝑶𝑵 🐶〃🐱\nhttps://www.wavve.com/player/vod?contentid=… | Ep. 988 | 2026-11-04 | https://image.wavve.com/….jpg",
@@ -237,7 +240,7 @@ const TEXT = {
     linksToFix: (n) => `${n} link(s) need fixing`, more: (n) => `+${n}`,
     unsupported: "Unsupported link", invalidDate: (d) => `Invalid date: ${d}`,
     wrongSource: (s) => `${s} videos cannot go into this playlist`, twice: "Listed twice",
-    inPlaylist: "Already in this playlist",
+    inPlaylist: (n) => `Already in '${n}'`,
     existing: "Existing video — its stored title and date are reused", needTitle: "Title required ( | title )",
     needDate: "Date required ( | 2026-11-04 )", autoDate: "Date automatic", ytAuto: "Title and date from YouTube",
     needThumb: "Thumbnail required (image or YouTube link)", tvingThumb: "Thumbnail fetched automatically",
@@ -260,7 +263,7 @@ function applyLanguage() {
   fill($("v-member"), F.memberChoices);
   fill($("p-member"), F.memberChoices);
   fill($("p-kind"), F.kindChoices);
-  if (target) pick(target);
+  renderTargets();
   search();
   update();
 }
@@ -288,7 +291,8 @@ const re = Object.fromEntries(Object.entries(F.patterns).map(([k, p]) => [k, new
 const dateRe = new RegExp("^(?:" + F.patterns.date + ")$");
 const allIds = new Set(F.videoIds);
 const noMember = F.memberChoices[0].value;
-let mode = "video", target = null;
+let mode = "video", targets = [];
+const kindKey = (tg) => (F.allowed[tg.kind] ? tg.kind : "playlist");
 
 for (const [tab, name] of [["tab-video", "video"], ["tab-playlist", "playlist"]]) {
   $(tab).onclick = () => {
@@ -317,20 +321,31 @@ function search() {
   }));
 }
 function pick(tg) {
-  target = tg;
-  $("pickedLabel").textContent = targetName(tg);
-  $("pickedId").textContent = tg.id;
-  $("pickedBox").hidden = false;
-  $("searchBox").hidden = true;
-  $("memberBox").hidden = !tg.needsMember;
+  if (!targets.includes(tg)) targets.push(tg);
+  $("q").value = "";
+  search();
+  renderTargets();
+}
+function renderTargets() {
+  $("chips").replaceChildren(...targets.map((tg) => {
+    const li = document.createElement("li");
+    li.className = "picked";
+    const name = document.createElement("span");
+    name.append(targetName(tg), Object.assign(document.createElement("span"), { className: "id", textContent: tg.id }));
+    const rm = Object.assign(document.createElement("button"), { type: "button", className: "link-btn", textContent: t("remove") });
+    rm.onclick = () => { targets = targets.filter((x) => x !== tg); renderTargets(); };
+    li.append(name, rm);
+    return li;
+  }));
+  $("memberBox").hidden = !targets.some((tg) => tg.needsMember);
+  // a TikTok series video is almost always in its era's Shorts playlist too
+  const shorts = F.targets.find((tg) => tg.id === F.latestShorts);
+  const offer = shorts && targets.some((tg) => tg.kind === F.series) && !targets.some((tg) => tg.kind === "shorts");
+  $("suggestBox").hidden = !offer;
+  if (offer) { $("suggest").textContent = t("suggest", targetName(shorts)); $("suggest").onclick = () => pick(shorts); }
   update();
 }
 $("q").addEventListener("input", search);
-$("unpick").onclick = () => {
-  target = null;
-  $("pickedBox").hidden = true; $("searchBox").hidden = false; $("memberBox").hidden = true;
-  $("q").focus(); update();
-};
 
 // ---------- link checks (advisory; the bot re-checks everything) ----------
 function realDate(s) {
@@ -372,7 +387,7 @@ function checkLinks(text, { allowed, inTarget, formDate }) {
     if (!allowed.includes(v.source)) bad(t("wrongSource", name));
     if (v.id && seen.has(v.id)) bad(t("twice"));
     if (v.id) seen.add(v.id);
-    if (v.id && inTarget.has(v.id)) bad(t("inPlaylist"));
+    if (v.id && inTarget.has(v.id)) bad(t("inPlaylist", inTarget.get(v.id)));
     if (v.id && allIds.has(v.id)) warn(t("existing"));
     else {
       if (F.needsTitle.includes(v.source) && !title) bad(t("needTitle"));
@@ -402,24 +417,27 @@ function build() {
   const problems = [];
   let title, body, results;
   if (mode === "video") {
-    if (!target) problems.push(t("pickPlaylist"));
+    if (!targets.length) problems.push(t("pickPlaylist"));
     const links = $("v-links").value, count = links.split("\n").filter((l) => l.trim()).length;
     if (!count) problems.push(t("addLink"));
-    const solo = !!(target && target.needsMember);
+    const solo = targets.some((tg) => tg.needsMember);
     const member = solo ? $("v-member").value : noMember;
     if (solo && member === noMember) problems.push(t("pickMember"));
-    const kind = target && F.allowed[target.kind] ? target.kind : "playlist";
+    // a link must be allowed in every chosen playlist; remember where each video already is
+    const allowed = targets.length ? Object.keys(F.sourceNames).filter((src) => targets.every((tg) => F.allowed[kindKey(tg)].includes(src)))
+                                   : F.allowed.playlist;
+    const inTarget = new Map();
+    for (const tg of targets) for (const i of tg.v) if (!inTarget.has(F.videoIds[i])) inTarget.set(F.videoIds[i], targetName(tg));
     results = checkLinks(links, {
-      allowed: F.allowed[kind],
-      inTarget: new Set(target ? target.v.map((i) => F.videoIds[i]) : []),
+      allowed, inTarget,
       formDate: realDate($("v-date").value),
     });
     showChecks($("v-checks"), results);
     const date = $("v-date").value.trim();
     if (date && !realDate(date)) problems.push(t("badDateField"));
-    title = F.issueTitle.video + (target ? target.title : "") + (count > 1 ? ` (+${count})` : "");
+    title = F.issueTitle.video + targets.map((tg) => tg.title).join(" · ") + (count > 1 ? ` (+${count})` : "");
     body = [
-      section(L.target, target && target.label), section(L.links, links), section(L.date, date),
+      section(L.target, targets.map((tg) => tg.label).join("\n")), section(L.links, links), section(L.date, date),
       section(L.member, member),
       `### ${L.options}\n\n- [${$("v-vertical").checked ? "x" : " "}] ${F.vertical}\n`,
     ].join("\n");
@@ -441,7 +459,7 @@ function build() {
     if (choice.channel === "required" && !special && !$("p-channel").value.trim()) problems.push(t("needChannel"));
     if (!links.trim()) problems.push(t("addLink"));
     results = checkLinks(links, { allowed: fans ? F.allowed[F.fansKind] : F.allowed.playlist,
-                                  inTarget: new Set(), formDate: realDate($("p-date").value) });
+                                  inTarget: new Map(), formDate: realDate($("p-date").value) });
     showChecks($("p-checks"), results);
     const date = $("p-date").value.trim();
     if (date && !realDate(date)) problems.push(t("badDateField"));

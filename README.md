@@ -18,8 +18,9 @@ No code editing needed — everything happens on github.com, also from a phone.
    Open **`/add.html`** on the site (recommended): search the playlist, paste links and set options there; each
    link is checked as you type. **Create issue** opens a filled-in GitHub issue — just press **Create**.
    (GitHub의 **Issues → New issue → 새 영상 추가** 양식을 직접 써도 됩니다. The GitHub form works too.)
-2. **재생목록**: id나 이름 일부로 검색합니다 (예: `radio star`, `shorts strange muse`).
-   **Playlist**: search by id or part of the name.
+2. **재생목록**: id나 이름 일부로 검색합니다 (예: `radio star`, `shorts strange muse`). 여러 재생목록을 한 번에 고를 수 있습니다
+   (쇼츠 시리즈를 고르면 그 활동의 쇼츠 재생목록도 추천합니다).
+   **Playlists**: search by id or part of the name; pick as many as needed (picking a Shorts series suggests the era's Shorts playlist too).
 3. **링크**: 한 줄에 영상 하나, `링크 | 제목 | 날짜 | 썸네일` 형식으로 출처마다 필요한 칸만 씁니다.
    **Links**: one video per line as `link | title | date | thumbnail`, writing only what each source needs.
 

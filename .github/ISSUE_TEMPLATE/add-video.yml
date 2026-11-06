@@ -6,11 +6,11 @@ body:
   - type: markdown
     attributes:
       value: "재생목록을 고르고 링크를 붙여 넣은 뒤 제출하세요. 제출하면 자동으로 사이트에 반영됩니다.\n\nPick a playlist, paste the links and submit. The site updates automatically.\n\n⚠️ 저장소 주인과 협업자(Collaborator)가 만든 이슈만 봇이 처리합니다. 다른 사람의 이슈는 무시됩니다.\n\n⚠️ The bot only processes issues from the repository owner and collaborators; other issues are ignored."
-  - type: input
+  - type: textarea
     id: playlist
     attributes:
       label: "재생목록 / Playlist"
-      description: "재생목록 id나 이름 일부를 입력하세요 (예: 월간, radio star, shorts strange muse). 목록에서 찾기: https://golddragon11.github.io/nmixx-archive/add.html  \nType the playlist id or part of its name (e.g. 월간, radio star, shorts strange muse). Search the list: https://golddragon11.github.io/nmixx-archive/add.html"
+      description: "재생목록 id나 이름 일부. 여러 재생목록에 넣으려면 한 줄에 하나씩 (예: shorts strange muse / tt-unit-jiwoo-kyujin). 목록에서 찾기: https://golddragon11.github.io/nmixx-archive/add.html  \nPlaylist id or part of its name. For several playlists, one per line (e.g. shorts strange muse / tt-unit-jiwoo-kyujin). Search the list: https://golddragon11.github.io/nmixx-archive/add.html"
     validations:
       required: true
   - type: textarea

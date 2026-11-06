@@ -154,6 +154,7 @@ def form_spec(data):
         "kindLabels": {k: {"ko": ko, "en": en} for k, (ko, en) in KIND_LABELS.items()},
         "issueTitle": {"video": "[새 영상] ", "playlist": "[새 재생목록] "},
         "series": nd.SERIES,
+        "latestShorts": next((p["id"] for p in playlists if p["kind"] == "shorts" and p.get("era") == albums[-1]["name"]), ""),
         "allowed": {k: sorted(allowed_sources(k)) for k in (nd.SERIES, "shorts", nd.FANS, "playlist")},
         "fansKind": nd.FANS,
         "needsTitle": ["tiktok", "fans", *nd.SOURCE_LABELS], "needsThumb": ["wavve", "netflix", "fans"],
@@ -261,9 +262,10 @@ def sync_form(data=None):
         "[새 영상] ",
         "재생목록을 고르고 링크를 붙여 넣은 뒤 제출하세요. 제출하면 자동으로 사이트에 반영됩니다.",
         "Pick a playlist, paste the links and submit. The site updates automatically.")
-    video += field("input", "playlist", F_TARGET,
-                   "재생목록 id나 이름 일부를 입력하세요 (예: 월간, radio star, shorts strange muse)." + search_ko,
-                   "Type the playlist id or part of its name (e.g. 월간, radio star, shorts strange muse)." + search_en,
+    video += field("textarea", "playlist", F_TARGET,
+                   "재생목록 id나 이름 일부. 여러 재생목록에 넣으려면 한 줄에 하나씩 (예: shorts strange muse / tt-unit-jiwoo-kyujin)." + search_ko,
+                   "Playlist id or part of its name. For several playlists, one per line "
+                   "(e.g. shorts strange muse / tt-unit-jiwoo-kyujin)." + search_en,
                    required=True)
     video += field("textarea", "links", F_LINKS, LINKS_KO, LINKS_EN, required=True, placeholder=LINKS_EXAMPLE)
     video += field("input", "date", F_DATE, DATE_KO, DATE_EN)
@@ -512,34 +514,41 @@ def insert_by_date(ids, vid, date, videos):
 # ---------- commands ----------
 
 def add_videos(form, data):
+    """Add the links to every playlist named in the playlist field (one per line)."""
     albums, members, videos, playlists = data
-    if not form.get(F_TARGET, "").strip():
+    lines = [l.strip() for l in form.get(F_TARGET, "").split("\n") if l.strip()]
+    if not lines:
         raise InputError("재생목록을 입력해 주세요.", "Please enter a playlist.")
-    target = find_target(form[F_TARGET], playlists)
-    playlist = next((p for p in playlists if p["id"] == target), None)
+    by_id = {p["id"]: p for p in playlists}
+    targets = list(dict.fromkeys(find_target(l, playlists) for l in lines))  # keep order, drop repeats
+    chosen = [by_id[t] for t in targets]
 
     items = parse_links(form.get(F_LINKS, ""), parse_date(form[F_DATE]) if form.get(F_DATE) else None)
     member_m = re.search(r"\(([A-Z]+)\)", form.get(F_MEMBER, ""))
     member = member_m.group(1) if member_m else None
     vertical = f"- [x] {VERTICAL}".lower() in form.get(F_OPTIONS, "").lower()
-
-    kind = playlist["kind"]
-    solo = needs_member(playlist)
+    solo = any(needs_member(p) for p in chosen)
     if solo and not member:
         raise InputError("멤버 솔로 시리즈와 팬즈 라이브에는 멤버를 골라야 합니다. 여러 멤버 영상은 유닛 시리즈에 넣어 주세요.",
                          "The member-solo series and FANS lives need a member. "
                          "Put videos with several members in a unit series.")
-    allowed = allowed_sources(kind)
-    channel = playlist.get("channel") or IMPLIED_CHANNEL.get(kind, "")
-    added = []
+
+    # check every playlist before changing anything
+    for p in chosen:
+        for item in items:
+            name = SOURCE_NAMES[item["source"]]
+            if item["source"] not in allowed_sources(p["kind"]):
+                raise InputError(f"{name} 영상은 이 재생목록에 넣을 수 없습니다: `{item['id']}` → {p['title']} (`{p['id']}`)",
+                                 f"{name} videos cannot go into this playlist: `{item['id']}` → {p['title']} (`{p['id']}`)")
+            if item["id"] in p["videos"]:
+                raise InputError(f"이미 이 재생목록에 있는 영상입니다: `{item['id']}` → {p['title']} (`{p['id']}`)",
+                                 f"Already in this playlist: `{item['id']}` → {p['title']} (`{p['id']}`)")
+
+    # the channel shown for a YouTube video is compared with a regular playlist's (series show none)
+    base = next((p for p in chosen if p["kind"] != nd.SERIES), chosen[0])
+    channel = base.get("channel") or IMPLIED_CHANNEL.get(base["kind"], "")
     for item in items:
-        if item["source"] not in allowed:
-            raise InputError(
-                f"{SOURCE_NAMES[item['source']]} 영상은 이 재생목록에 넣을 수 없습니다: `{item['id']}`",
-                f"{SOURCE_NAMES[item['source']]} videos cannot go into this playlist: `{item['id']}`")
         vid = item["id"]
-        if vid in playlist["videos"]:
-            raise InputError(f"이미 이 재생목록에 있는 영상입니다: `{vid}`", f"Already in this playlist: `{vid}`")
         if vid not in videos:
             videos[vid] = new_video(item, playlist_channel=channel, member=member, vertical=vertical)
         elif solo:
@@ -548,12 +557,14 @@ def add_videos(form, data):
                 raise InputError(f"이 영상은 이미 다른 멤버로 표시되어 있습니다: `{vid}` ({', '.join(tagged)})",
                                  f"This video is already tagged with another member: `{vid}` ({', '.join(tagged)})")
             videos[vid]["members"] = [member]
-        insert_by_date(playlist["videos"], vid, videos[vid]["date"], videos)
-        added.append(vid)
+        for p in chosen:
+            insert_by_date(p["videos"], vid, videos[vid]["date"], videos)
 
-    summary = [f"✅ **{option_label(playlist)}** 에 {len(added)}개 추가했습니다. / Added {len(added)}.", ""]
-    summary += [video_line(vid, videos[vid]) for vid in added]
-    return f"새 영상 {len(added)}개 추가 ({today()})", "\n".join(summary)
+    summary = []
+    for p in chosen:
+        summary += [f"✅ **{option_label(p)}** 에 {len(items)}개 추가했습니다. / Added {len(items)}.", ""]
+        summary += [video_line(i["id"], videos[i["id"]]) for i in items] + [""]
+    return f"새 영상 {len(items)}개 추가 ({today()})", "\n".join(summary).strip()
 
 
 def slugify(text):
