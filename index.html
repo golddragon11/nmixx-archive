@@ -3442,17 +3442,18 @@
             channel: "",
             eps: i.flatMap((e) => e.eps),
           });
+        }),
+        [
+          ["tv-begin-again-open-mic", "비긴어게인 오픈마이크"],
+          ["tv-salon-de-doll", "살롱드돌:너 참 말 많다"],
+        ].forEach(([e, i]) => {
+          const a = t.find((t) => t.id === e),
+            d = t.find((e) => "guest" === e.kind && e.title === i);
+          a &&
+            d &&
+            (a.eps.push(...d.eps.map((e) => ({ ...e, ch: e.ch || d.channel }))),
+            t.splice(t.indexOf(d), 1));
         }));
-      {
-        const e = t.find((e) => "tv-begin-again-open-mic" === e.id),
-          i = t.find(
-            (e) => "guest" === e.kind && "비긴어게인 오픈마이크" === e.title,
-          );
-        e &&
-          i &&
-          (e.eps.push(...i.eps.map((e) => ({ ...e, ch: e.ch || i.channel }))),
-          t.splice(t.indexOf(i), 1));
-      }
       const b = (e) => ({
         ...e,
         tt: 1,
