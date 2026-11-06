@@ -19,23 +19,33 @@ No code editing needed — everything happens on github.com, also from a phone.
    (GitHub의 **Issues → New issue → 새 영상 추가** 양식을 직접 써도 됩니다. The GitHub form works too.)
 2. **재생목록**: id나 이름 일부로 검색합니다 (예: `radio star`, `shorts strange muse`).
    **Playlist**: search by id or part of the name.
-3. **링크**: 한 줄에 하나씩. 링크 뒤에 `|` 로 날짜·제목·썸네일을 붙일 수 있습니다.
-   **Links**: one per line; after a link you can add `|` date, title, thumbnail.
+3. **링크**: 한 줄에 영상 하나, `링크 | 제목 | 날짜 | 썸네일` 형식으로 출처마다 필요한 칸만 씁니다.
+   **Links**: one video per line as `link | title | date | thumbnail`, writing only what each source needs.
 
    ```
    https://youtu.be/abc123def45
-   https://youtu.be/abc123def46 2024-05-01
-   https://www.tiktok.com/@nmixx_official/video/7704213048080207122 | 2026-11-04 | 𝑵𝑬𝑶𝑵 🐶〃🐱
-   https://www.wavve.com/player/stream/vod?contentid=M_EP202610297364.1 | 2026-11-04 | 988회 · 특집 | https://image.wavve.com/….jpg
+   https://www.tiktok.com/@nmixx_official/video/7704213048080207122 | 𝑵𝑬𝑶𝑵 🐶〃🐱
+   https://www.tving.com/player/E004548958 | 415회 · 엔믹스 릴리 | 2026-05-02
+   https://www.wavve.com/player/stream/vod?contentid=M_EP202610297364.1 | 988회 · 특집 | 2026-11-04 | https://image.wavve.com/….jpg
    ```
 
-   | 출처 / Source | 제목 / Title | 썸네일 / Thumbnail | 넣을 수 있는 곳 / Allowed in |
+   | 출처 / Source | 쓰는 법 / Write | 자동 / Automatic | 넣을 수 있는 곳 / Allowed in |
    |---|---|---|---|
-   | YouTube | 자동 / automatic | 자동 / automatic | 재생목록, 쇼츠 시리즈 / playlists, Shorts series |
-   | TikTok | 필요 / required | — | 쇼츠 시리즈, 시리즈 없는 틱톡 / Shorts series, TikTok without a series |
-   | TVING | 필요 / required | 비우면 자동 / automatic if blank | 재생목록 / playlists |
-   | Wavve, Netflix | 필요 / required | 필요 (이미지나 유튜브 링크) / required (image or YouTube link) | 재생목록 / playlists |
+   | YouTube | `링크` | 제목, 날짜 (유튜브 게시일, 한국 시간), 채널 / title, date (publish date, Korea time), channel | 재생목록, 쇼츠 시리즈 / playlists, Shorts series |
+   | TikTok | `링크 \| 제목` | 날짜 (영상 id에서) / date (from the id) | 쇼츠 시리즈, 시리즈 없는 틱톡 / Shorts series, TikTok without a series |
+   | TVING | `링크 \| 제목 \| 날짜` | 썸네일 / thumbnail | 재생목록 / playlists |
+   | Wavve, Netflix | `링크 \| 제목 \| 날짜 \| 썸네일` | — | 재생목록 / playlists |
 
+   썸네일은 이미지 주소나 유튜브 링크 (그 영상의 썸네일). 칸 순서가 바뀌어도 알아서 구분합니다.
+   **모든 링크에 같은 날짜** 칸은 날짜가 없는 줄 모두에 그 날짜를 씁니다 (자동 날짜보다 우선). 보통은 비워 둡니다.
+   A thumbnail is an image URL or a YouTube link (its thumbnail is used); parts are recognised in any order.
+   **Same date for all links** applies to every line without its own date (overriding automatic dates); usually left blank.
+
+   **멤버**: 멤버 솔로 시리즈(`tt-solo`)에 넣을 때만 나타나며 꼭 골라야 합니다. 여러 멤버가 나오는 영상은
+   해당 유닛 시리즈(예: `tt-unit-lily-haewon`)에 넣으면 됩니다.
+   **Member** only appears for the member-solo series (`tt-solo`), where it is required. Videos with several
+   members go into the matching unit series (e.g. `tt-unit-lily-haewon`).
+   `add.html` 은 한국어와 영어로 볼 수 있습니다 (사이트와 같은 언어 설정). `add.html` is available in Korean and English.
 4. 제출하면 1~2분 뒤 봇이 추가하고 결과를 댓글로 남긴 뒤 이슈를 닫습니다. 사이트에는 몇 분 안에 반영됩니다.
    After submitting, a bot adds the videos within a minute or two, comments and closes the issue; the site updates a few minutes later.
 5. 문제가 있으면 봇이 이유를 댓글로 남깁니다. 이슈를 수정하면 자동으로 다시 시도합니다.

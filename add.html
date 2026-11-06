@@ -20,19 +20,24 @@
   body { margin: 0; background: var(--bg); color: var(--fg);
          font: 15px/1.5 system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
   main { max-width: 760px; margin: 0 auto; padding: 24px 16px 200px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
   h1 { font-size: 1.4rem; margin: 0 0 4px; }
-  .sub { margin: 0 0 16px; color: var(--muted); }
+  .sub { margin: 0 0 8px; color: var(--muted); }
+  .note { margin: 0 0 16px; padding: 8px 12px; border-left: 3px solid var(--warn); background: var(--soft);
+          border-radius: 0 6px 6px 0; font-size: 13px; }
+  #lang { width: auto; padding: 6px 10px; }
   .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 20px; }
   .tabs button { font: inherit; padding: 10px 14px; border: 0; background: none; color: var(--muted);
                  border-bottom: 2px solid transparent; cursor: pointer; }
   .tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
-  fieldset { border: 0; margin: 0 0 18px; padding: 0; }
+  fieldset { border: 0; margin: 0 0 18px; padding: 0; min-width: 0; }
   label, legend { display: block; font-weight: 600; margin: 0 0 6px; }
   .hint { display: block; font-weight: 400; font-size: 13px; color: var(--muted); }
   input[type=text], input[type=search], textarea, select {
     width: 100%; padding: 10px 12px; font: inherit; color: inherit; background: transparent;
     border: 1px solid var(--line); border-radius: 10px; }
   textarea { min-height: 120px; resize: vertical; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+  textarea.plain { min-height: 70px; font-family: inherit; font-size: inherit; }
   input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); border-color: transparent; }
   select { background: var(--bg); }
   .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 16px; }
@@ -69,6 +74,9 @@
   .secondary { font: inherit; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line);
                background: none; color: inherit; cursor: pointer; }
   details { margin-top: 8px; }
+  .guide table { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 6px; }
+  .guide th, .guide td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .guide code { overflow-wrap: anywhere; }
   summary { cursor: pointer; color: var(--muted); font-size: 13px; }
   pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; background: var(--soft);
         padding: 10px; border-radius: 8px; max-height: 280px; overflow: auto; }
@@ -76,79 +84,192 @@
 </head>
 <body>
 <main>
-  <h1>영상 추가 · Add videos</h1>
-  <p class="sub">여기서 모두 입력하고 버튼을 누르면 GitHub 이슈가 채워진 채로 열립니다. 거기서 <b>Create</b> 만 누르세요.<br>
-    Fill in everything here; the button opens a GitHub issue that is already filled in — just press <b>Create</b>.</p>
+  <header>
+    <div><h1 data-t="heading"></h1></div>
+    <select id="lang" aria-label="Language"><option value="ko">한국어</option><option value="en">English</option></select>
+  </header>
+  <p class="sub" data-t-html="intro"></p>
+  <p class="note" data-t-html="collabNote"></p>
 
   <div class="tabs" role="tablist">
-    <button role="tab" id="tab-video" aria-selected="true">영상 추가 · Add videos</button>
-    <button role="tab" id="tab-playlist" aria-selected="false">새 재생목록 · New playlist</button>
+    <button role="tab" id="tab-video" aria-selected="true" data-t="tabVideo"></button>
+    <button role="tab" id="tab-playlist" aria-selected="false" data-t="tabPlaylist"></button>
   </div>
 
   <section id="pane-video">
     <fieldset>
-      <legend>재생목록 · Playlist</legend>
+      <legend data-t="playlist"></legend>
       <div id="pickedBox" hidden class="picked">
         <span><span id="pickedLabel"></span><span class="id" id="pickedId"></span></span>
-        <button class="link-btn" id="unpick">바꾸기 · Change</button>
+        <button class="link-btn" id="unpick" data-t="change"></button>
       </div>
       <div id="searchBox">
-        <input id="q" type="search" placeholder="검색 · Search: 월간, radio star, shorts strange muse" autocomplete="off">
+        <input id="q" type="search" data-t-ph="searchPh" autocomplete="off">
         <ul class="results" id="results"></ul>
       </div>
     </fieldset>
     <fieldset>
-      <label for="v-links">링크 · Links
-        <span class="hint">한 줄에 하나. 링크 뒤 <code>|</code> 로 날짜·제목·썸네일. One per line; add <code>|</code> date, title, thumbnail after a link.</span></label>
-      <textarea id="v-links" placeholder="https://youtu.be/abc123def45&#10;https://www.wavve.com/player/vod?contentid=… | 2026-11-04 | 988회 · 특집 | https://image.wavve.com/….jpg"></textarea>
+      <label for="v-links"><span data-t="links"></span><span class="hint" data-t-html="linksHint"></span></label>
+      <textarea id="v-links" data-t-ph="linksPh"></textarea>
       <ul class="checks" id="v-checks"></ul>
+      <details class="guide"><summary data-t="formatTitle"></summary><div data-t-html="formatTable"></div></details>
     </fieldset>
     <div class="row">
-      <fieldset><label for="v-date">날짜 · Date <span class="hint">비우면 오늘 (한국) · blank = today (Korea)</span></label>
-        <input id="v-date" type="text" placeholder="2026-11-05"></fieldset>
-      <fieldset><label for="v-title">제목 · Title <span class="hint">영상 1개일 때만 · one video only</span></label>
-        <input id="v-title" type="text"></fieldset>
-      <fieldset><label for="v-channel">채널 · Channel <span class="hint">비우면 유튜브 채널 · blank = YouTube's</span></label>
-        <input id="v-channel" type="text"></fieldset>
-      <fieldset><label for="v-member">멤버 · Member</label><select id="v-member"></select></fieldset>
-      <fieldset id="eraBox" hidden><label for="v-era">활동 시기 · Era <span class="hint">발매 전 티저는 다음 앨범 · teasers: upcoming album</span></label>
+      <fieldset id="memberBox" hidden><label for="v-member"><span data-t="member"></span><span class="hint" data-t="memberHint"></span></label>
+        <select id="v-member"></select></fieldset>
+      <fieldset id="eraBox" hidden><label for="v-era"><span data-t="era"></span><span class="hint" data-t="eraHint"></span></label>
         <select id="v-era"></select></fieldset>
+      <fieldset><label for="v-date"><span data-t="date"></span><span class="hint" data-t="dateHint"></span></label>
+        <input id="v-date" type="text" placeholder="2026-11-05"></fieldset>
     </div>
-    <label class="check"><input id="v-vertical" type="checkbox"> <span id="verticalLabel"></span></label>
+    <label class="check"><input id="v-vertical" type="checkbox"> <span data-t="vertical"></span></label>
   </section>
 
   <section id="pane-playlist" hidden>
     <div class="row">
-      <fieldset><label for="p-kind">종류 · Kind</label><select id="p-kind"></select></fieldset>
-      <fieldset><label for="p-title">제목 · Title</label><input id="p-title" type="text"></fieldset>
-      <fieldset><label for="p-channel">채널 · Channel <span class="hint">비우면 자동 · blank = automatic</span></label>
+      <fieldset><label for="p-kind" data-t="kind"></label><select id="p-kind"></select></fieldset>
+      <fieldset><label for="p-title" data-t="playlistTitle"></label><input id="p-title" type="text"></fieldset>
+      <fieldset><label for="p-channel"><span data-t="channel"></span><span class="hint" data-t="autoHint"></span></label>
         <input id="p-channel" type="text"></fieldset>
-      <fieldset><label for="p-date">날짜 · Date <span class="hint">비우면 오늘 · blank = today</span></label>
+      <fieldset><label for="p-date"><span data-t="date"></span><span class="hint" data-t="dateHint"></span></label>
         <input id="p-date" type="text" placeholder="2026-11-05"></fieldset>
     </div>
-    <fieldset><label for="p-desc">설명 · Description <span class="hint">선택 · optional</span></label>
-      <textarea id="p-desc" style="min-height:70px;font-family:inherit;font-size:inherit"></textarea></fieldset>
+    <fieldset><label for="p-desc"><span data-t="desc"></span><span class="hint" data-t="optional"></span></label>
+      <textarea id="p-desc" class="plain"></textarea></fieldset>
     <fieldset>
-      <label for="p-links">첫 영상 링크 · First video links
-        <span class="hint">한 줄에 하나. 링크 뒤 <code>|</code> 로 날짜·제목·썸네일. One per line; add <code>|</code> date, title, thumbnail.</span></label>
+      <label for="p-links"><span data-t="firstLinks"></span><span class="hint" data-t-html="linksHint"></span></label>
       <textarea id="p-links" placeholder="https://youtu.be/abc123def45"></textarea>
       <ul class="checks" id="p-checks"></ul>
+      <details class="guide"><summary data-t="formatTitle"></summary><div data-t-html="formatTable"></div></details>
     </fieldset>
   </section>
 
-  <details><summary>이슈 내용 미리 보기 · Preview issue</summary><pre id="preview"></pre></details>
+  <details><summary data-t="preview"></summary><pre id="preview"></pre></details>
 </main>
 
 <div class="bar"><div class="bar-inner">
   <span class="status" id="status"></span>
-  <button class="secondary" id="copy">본문 복사 · Copy</button>
-  <button class="primary" id="create" disabled>GitHub 이슈 만들기 · Create issue</button>
+  <button class="secondary" id="copy" data-t="copy"></button>
+  <button class="primary" id="create" disabled></button>
 </div></div>
 
 <script src="data/add-form.js"></script>
 <script>
 const F = ADD_FORM, L = F.labels;
 const $ = (id) => document.getElementById(id);
+
+// ---------- text ----------
+const TEXT = {
+  ko: {
+    heading: "영상 추가", tabVideo: "영상 추가", tabPlaylist: "새 재생목록",
+    intro: "여기서 모두 입력하고 버튼을 누르면 내용이 채워진 GitHub 이슈가 열립니다. 거기서 <b>Create</b> 만 누르세요.",
+    collabNote: "⚠️ 저장소 <b>주인과 협업자(Collaborator)</b> 가 만든 이슈만 봇이 처리합니다. 다른 사람이 만든 이슈는 무시되니, 영상 추가는 협업자만 해 주세요.",
+    playlist: "재생목록", change: "바꾸기", searchPh: "검색: 월간, radio star, shorts strange muse",
+    links: "링크", firstLinks: "첫 영상 링크",
+    linksHint: "한 줄에 영상 하나: <code>링크 | 제목 | 날짜 | 썸네일</code> — 출처마다 필요한 칸만 쓰면 됩니다 (아래 안내).",
+    linksPh: "https://youtu.be/abc123def45\nhttps://www.tiktok.com/@nmixx_official/video/7704213048080207122 | 𝑵𝑬𝑶𝑵 🐶〃🐱\nhttps://www.wavve.com/player/vod?contentid=… | 988회 · 특집 | 2026-11-04 | https://image.wavve.com/….jpg",
+    formatTitle: "출처별 입력 방법",
+    formatTable: "<table><tr><th>출처</th><th>쓰는 법</th><th>자동</th></tr>"
+      + "<tr><td>유튜브</td><td><code>링크</code></td><td>제목, 날짜, 채널</td></tr>"
+      + "<tr><td>틱톡</td><td><code>링크 | 제목</code></td><td>날짜</td></tr>"
+      + "<tr><td>티빙</td><td><code>링크 | 제목 | 날짜</code></td><td>썸네일</td></tr>"
+      + "<tr><td>웨이브, 넷플릭스</td><td><code>링크 | 제목 | 날짜 | 썸네일</code></td><td>—</td></tr></table>"
+      + "<p class='hint'>날짜는 2026-11-04 형식. 썸네일은 이미지 주소나 유튜브 링크 (그 영상의 썸네일을 씀). 순서가 바뀌어도 알아서 구분합니다.</p>",
+    member: "멤버", memberHint: "솔로 시리즈는 멤버가 필요합니다. 여러 멤버 영상은 유닛 시리즈에 넣으세요.",
+    era: "활동 시기", eraHint: "발매 전 티저는 다음 앨범을 고르세요.",
+    date: "모든 링크에 같은 날짜", dateHint: "선택 — 비우면 유튜브·틱톡은 자동, 다른 출처는 링크마다 날짜",
+    channel: "채널", autoHint: "비우면 자동",
+    vertical: "세로 영상 (쇼츠)", kind: "종류", playlistTitle: "재생목록 제목", desc: "설명", optional: "선택",
+    preview: "이슈 내용 미리 보기", copy: "본문 복사", create: "GitHub 이슈 만들기", createLong: "복사하고 이슈 열기",
+    ready: "준비 완료", long: "내용이 길어서 복사됩니다. 열린 이슈 본문에 붙여 넣으세요.",
+    copied: "복사됨", copyFailed: "복사 실패 — 미리 보기에서 직접 복사하세요",
+    noRepo: "저장소를 알 수 없습니다 (?repo=owner/name)", pickPlaylist: "재생목록을 고르세요", addLink: "링크를 넣으세요",
+    pickMember: "솔로 시리즈는 멤버를 고르세요",
+    badDateField: "날짜 형식을 확인하세요", needPlaylistTitle: "재생목록 제목을 넣으세요",
+    linksToFix: (n) => `링크 ${n}개를 고쳐야 합니다`, more: (n) => `+${n}`,
+    unsupported: "지원하지 않는 링크", invalidDate: (d) => `없는 날짜: ${d}`,
+    wrongSource: (s) => `${s} 영상은 이 재생목록에 넣을 수 없음`, twice: "같은 영상이 두 번",
+    inPlaylist: "이미 이 재생목록에 있음", tiktokListed: "이미 등록된 틱톡",
+    existing: "이미 있는 영상 — 저장된 제목·날짜를 그대로 씀", needTitle: "제목 필요 ( | 제목 )",
+    needDate: "날짜 필요 ( | 2026-11-04 )", autoDate: "날짜는 자동", ytAuto: "제목·날짜는 유튜브에서 자동",
+    needThumb: "썸네일 필요 (이미지나 유튜브 링크)", tvingThumb: "썸네일은 자동으로 가져옴",
+    shortTiktok: "짧은 틱톡 링크 — 봇이 확인",
+    standalonePrefix: "틱톡",
+  },
+  en: {
+    heading: "Add videos", tabVideo: "Add videos", tabPlaylist: "New playlist",
+    intro: "Fill in everything here; the button opens a GitHub issue that is already filled in — just press <b>Create</b>.",
+    collabNote: "⚠️ The bot only processes issues created by the repository <b>owner and collaborators</b>. Issues from anyone else are ignored, so only collaborators should add videos.",
+    playlist: "Playlist", change: "Change", searchPh: "Search: 월간, radio star, shorts strange muse",
+    links: "Links", firstLinks: "First video links",
+    linksHint: "One video per line: <code>link | title | date | thumbnail</code> — only the parts each source needs (see below).",
+    linksPh: "https://youtu.be/abc123def45\nhttps://www.tiktok.com/@nmixx_official/video/7704213048080207122 | 𝑵𝑬𝑶𝑵 🐶〃🐱\nhttps://www.wavve.com/player/vod?contentid=… | Ep. 988 | 2026-11-04 | https://image.wavve.com/….jpg",
+    formatTitle: "How to write each source",
+    formatTable: "<table><tr><th>Source</th><th>Write</th><th>Automatic</th></tr>"
+      + "<tr><td>YouTube</td><td><code>link</code></td><td>title, date, channel</td></tr>"
+      + "<tr><td>TikTok</td><td><code>link | title</code></td><td>date</td></tr>"
+      + "<tr><td>TVING</td><td><code>link | title | date</code></td><td>thumbnail</td></tr>"
+      + "<tr><td>Wavve, Netflix</td><td><code>link | title | date | thumbnail</code></td><td>—</td></tr></table>"
+      + "<p class='hint'>Dates look like 2026-11-04. A thumbnail is an image URL or a YouTube link (its thumbnail is used). Parts are recognised even if the order differs.</p>",
+    member: "Member", memberHint: "The solo series needs a member. Videos with several members go into a unit series.",
+    era: "Era", eraHint: "For pre-release teasers pick the upcoming album.",
+    date: "Same date for all links", dateHint: "Optional — blank = automatic for YouTube and TikTok; other sources need a date per line",
+    channel: "Channel", autoHint: "Blank = automatic",
+    vertical: "Vertical video (Shorts)", kind: "Kind", playlistTitle: "Playlist title", desc: "Description", optional: "Optional",
+    preview: "Preview issue", copy: "Copy body", create: "Create GitHub issue", createLong: "Copy & open issue",
+    ready: "Ready", long: "This issue is long, so it is copied — paste it into the issue body.",
+    copied: "Copied", copyFailed: "Copy failed — copy it from the preview",
+    noRepo: "Unknown repository (add ?repo=owner/name)", pickPlaylist: "Pick a playlist", addLink: "Add a link",
+    pickMember: "Pick a member for the solo series",
+    badDateField: "Check the date", needPlaylistTitle: "Enter a playlist title",
+    linksToFix: (n) => `${n} link(s) need fixing`, more: (n) => `+${n}`,
+    unsupported: "Unsupported link", invalidDate: (d) => `Invalid date: ${d}`,
+    wrongSource: (s) => `${s} videos cannot go into this playlist`, twice: "Listed twice",
+    inPlaylist: "Already in this playlist", tiktokListed: "TikTok already listed",
+    existing: "Existing video — its stored title and date are reused", needTitle: "Title required ( | title )",
+    needDate: "Date required ( | 2026-11-04 )", autoDate: "Date automatic", ytAuto: "Title and date from YouTube",
+    needThumb: "Thumbnail required (image or YouTube link)", tvingThumb: "Thumbnail fetched automatically",
+    shortTiktok: "Short TikTok link — the bot resolves it",
+    standalonePrefix: "TikTok",
+  },
+};
+const LANG_KEY = "nmixx-lang";  // shared with the main page
+let lang = (() => {
+  try { const s = localStorage.getItem(LANG_KEY); if (s) return s === "ko" ? "ko" : "en"; } catch {}
+  return (navigator.language || "").toLowerCase().startsWith("ko") ? "ko" : "en";
+})();
+const t = (key, ...args) => { const v = TEXT[lang][key]; return typeof v === "function" ? v(...args) : v; };
+
+function applyLanguage() {
+  document.documentElement.lang = lang;
+  $("lang").value = lang;
+  document.querySelectorAll("[data-t]").forEach((el) => { el.textContent = t(el.dataset.t); });
+  document.querySelectorAll("[data-t-html]").forEach((el) => { el.innerHTML = t(el.dataset.tHtml); });
+  document.querySelectorAll("[data-t-ph]").forEach((el) => { el.placeholder = t(el.dataset.tPh); });
+  fill($("v-member"), F.memberChoices);
+  fill($("v-era"), F.eraChoices);
+  fill($("p-kind"), F.kindChoices);
+  if (target) pick(target);
+  search();
+  update();
+}
+$("lang").onchange = () => {
+  lang = $("lang").value;
+  try { localStorage.setItem(LANG_KEY, lang); } catch {}
+  applyLanguage();
+};
+function fill(select, choices) {
+  const keep = select.value;
+  select.replaceChildren(...choices.map((c) => Object.assign(document.createElement("option"), { value: c.value, textContent: c[lang] })));
+  if (keep) select.value = keep;
+}
+function targetName(tg) {
+  if (tg.id === F.standalone) return `[${t("standalonePrefix")}] ${F.standaloneTitle[lang]}`;
+  const era = tg.era ? " · " + (F.eraChoices.find((c) => c.value === tg.era) || { [lang]: tg.era })[lang] : "";
+  return `[${(F.kindLabels[tg.kind] || { [lang]: tg.kind })[lang]}] ${tg.title}${era}`;
+}
+
+// ---------- state ----------
 const repo = new URLSearchParams(location.search).get("repo")
   || (location.hostname.endsWith(".github.io") ? location.hostname.split(".")[0] + "/" + location.pathname.split("/")[1] : "");
 const MAX_URL = 7000;  // GitHub rejects very long URLs; longer issues are copied and pasted instead
@@ -156,17 +277,9 @@ const norm = (s) => s.normalize("NFKC").toLowerCase().replace(/[\s\p{P}\p{S}_]+/
 const re = Object.fromEntries(Object.entries(F.patterns).map(([k, p]) => [k, new RegExp(p)]));
 const dateRe = new RegExp("^(?:" + F.patterns.date + ")$");
 const allIds = new Set(F.videoIds);
+const noMember = F.memberChoices[0].value;
 let mode = "video", target = null;
 
-function fill(select, options) {
-  select.replaceChildren(...options.map((o) => Object.assign(document.createElement("option"), { value: o, textContent: o })));
-}
-fill($("v-member"), F.memberOptions);
-fill($("v-era"), F.eraOptions);
-fill($("p-kind"), F.kindOptions);
-$("verticalLabel").textContent = F.vertical;
-
-// ---------- tabs ----------
 for (const [tab, name] of [["tab-video", "video"], ["tab-playlist", "playlist"]]) {
   $(tab).onclick = () => {
     mode = name;
@@ -181,29 +294,34 @@ for (const [tab, name] of [["tab-video", "video"], ["tab-playlist", "playlist"]]
 // ---------- playlist search ----------
 function search() {
   const words = $("q").value.split(/\s+/).map(norm).filter(Boolean);
-  const hits = words.length ? F.targets.filter((t) => words.every((w) => norm(t.label).includes(w))).slice(0, 50) : [];
-  $("results").replaceChildren(...hits.map((t) => {
+  const hits = words.length ? F.targets.filter((tg) => words.every((w) => norm(tg.label).includes(w))).slice(0, 50) : [];
+  $("results").replaceChildren(...hits.map((tg) => {
     const b = document.createElement("button");
     b.type = "button";
-    b.textContent = t.label.replace(/ \([^()]+\)$/, "");
-    b.append(Object.assign(document.createElement("span"), { className: "id", textContent: t.id }));
-    b.onclick = () => pick(t);
+    b.textContent = targetName(tg);
+    b.append(Object.assign(document.createElement("span"), { className: "id", textContent: tg.id }));
+    b.onclick = () => pick(tg);
     const li = document.createElement("li");
     li.append(b);
     return li;
   }));
 }
-function pick(t) {
-  target = t;
-  $("pickedLabel").textContent = t.label.replace(/ \([^()]+\)$/, "");
-  $("pickedId").textContent = t.id;
-  $("pickedBox").hidden = !t;
-  $("searchBox").hidden = !!t;
-  $("eraBox").hidden = !t || t.id !== F.standalone;
+function pick(tg) {
+  target = tg;
+  $("pickedLabel").textContent = targetName(tg);
+  $("pickedId").textContent = tg.id;
+  $("pickedBox").hidden = false;
+  $("searchBox").hidden = true;
+  $("eraBox").hidden = tg.id !== F.standalone;
+  $("memberBox").hidden = !tg.solo;
   update();
 }
 $("q").addEventListener("input", search);
-$("unpick").onclick = () => { target = null; $("pickedBox").hidden = true; $("searchBox").hidden = false; $("eraBox").hidden = true; $("q").focus(); update(); };
+$("unpick").onclick = () => {
+  target = null;
+  $("pickedBox").hidden = true; $("searchBox").hidden = false; $("eraBox").hidden = true; $("memberBox").hidden = true;
+  $("q").focus(); update();
+};
 
 // ---------- link checks (advisory; the bot re-checks everything) ----------
 function realDate(s) {
@@ -222,39 +340,38 @@ function identify(link) {
   if ((m = link.match(re.netflix))) return { source: "netflix", id: "nf-" + m[2] };
   return null;
 }
-function checkLinks(text, { allowed, inTarget, standaloneTarget, formTitle }) {
-  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+function checkLinks(text, { allowed, inTarget, standaloneTarget, formDate }) {
   const seen = new Set();
-  return lines.map((line) => {
+  return text.split("\n").map((l) => l.trim()).filter(Boolean).map((line) => {
     const parts = line.split("|").map((p) => p.trim());
     const head = parts[0].split(/\s+/), link = head[0];
     const extras = [head.slice(1).join(" "), ...parts.slice(1)].filter(Boolean);
     const out = { line, level: "ok", notes: [] };
-    const bad = (ko, en) => { out.level = "err"; out.notes.push(`${ko} · ${en}`); };
-    const warn = (ko, en) => { if (out.level === "ok") out.level = "warn"; out.notes.push(`${ko} · ${en}`); };
+    const bad = (msg) => { out.level = "err"; out.notes.push(msg); };
+    const warn = (msg) => { if (out.level === "ok") out.level = "warn"; out.notes.push(msg); };
     const v = identify(link);
-    if (!v) { bad("지원하지 않는 링크", "unsupported link"); return out; }
+    if (!v) { bad(t("unsupported")); return out; }
     const name = F.sourceNames[v.source];
     let date = "", title = "", thumb = "";
     for (const x of extras) {
-      if (dateRe.test(x)) { date = realDate(x); if (!date) bad(`없는 날짜: ${x}`, `invalid date: ${x}`); }
+      if (dateRe.test(x)) { date = realDate(x); if (!date) bad(t("invalidDate", x)); }
       else if (/^https?:\/\//.test(x)) thumb = x;
       else title = x;
     }
-    out.head = `${name}${v.id ? " · " + v.id : ""}${date ? " · " + date : ""}${title ? " · " + title : ""}`;
-    if (!allowed.includes(v.source)) bad(`${name} 영상은 이 재생목록에 넣을 수 없음`, `${name} cannot go into this playlist`);
-    if (v.id && seen.has(v.id)) bad("같은 영상이 두 번", "listed twice");
+    out.head = [name, v.id, date, title].filter(Boolean).join(" · ");
+    if (!allowed.includes(v.source)) bad(t("wrongSource", name));
+    if (v.id && seen.has(v.id)) bad(t("twice"));
     if (v.id) seen.add(v.id);
-    if (v.id && inTarget.has(v.id)) bad(standaloneTarget ? "이미 등록된 틱톡" : "이미 이 재생목록에 있음",
-                                        standaloneTarget ? "TikTok already listed" : "already in this playlist");
-    const existing = v.id && allIds.has(v.id);
-    if (existing) warn("이미 있는 영상 — 기존 제목·정보를 그대로 씀", "existing video — its stored title and details are reused");
+    if (v.id && inTarget.has(v.id)) bad(t(standaloneTarget ? "tiktokListed" : "inPlaylist"));
+    if (v.id && allIds.has(v.id)) warn(t("existing"));
     else {
-      if (F.needsTitle.includes(v.source) && !title && !formTitle) bad("제목 필요 ( | 제목 )", "title required ( | title )");
-      if (F.needsThumb.includes(v.source) && !thumb) bad("썸네일 필요 (이미지나 유튜브 링크)", "thumbnail required (image or YouTube link)");
-      if (v.source === "tving" && !thumb) warn("썸네일은 자동으로 가져옴", "thumbnail fetched automatically");
-      if (v.source === "youtube" && !title) out.notes.push("제목은 유튜브에서 자동 · title from YouTube");
-      if (!v.id) warn("짧은 틱톡 링크 — 봇이 확인", "short TikTok link — the bot resolves it");
+      if (F.needsTitle.includes(v.source) && !title) bad(t("needTitle"));
+      if (!date && !formDate && !F.autoDate.includes(v.source)) bad(t("needDate"));
+      if (F.needsThumb.includes(v.source) && !thumb) bad(t("needThumb"));
+      if (v.source === "tving" && !thumb) warn(t("tvingThumb"));
+      if (v.source === "youtube") out.notes.push(t("ytAuto"));
+      else if (!date && !formDate && F.autoDate.includes(v.source)) out.notes.push(t("autoDate"));
+      if (!v.id) warn(t("shortTiktok"));
     }
     return out;
   });
@@ -269,41 +386,42 @@ function showChecks(list, results) {
   }));
 }
 
-// ---------- issue body (same layout as the GitHub issue form) ----------
+// ---------- issue body (bilingual labels, same layout as the GitHub issue form) ----------
 const section = (label, value) => `### ${label}\n\n${(value || "").trim() || F.noResponse}\n`;
 function build() {
   const problems = [];
   let title, body, results;
   if (mode === "video") {
-    if (!target) problems.push("재생목록을 고르세요 · pick a playlist");
+    if (!target) problems.push(t("pickPlaylist"));
     const links = $("v-links").value, count = links.split("\n").filter((l) => l.trim()).length;
-    if (!count) problems.push("링크를 넣으세요 · add a link");
-    if ($("v-title").value.trim() && count > 1) problems.push("영상이 여러 개면 제목 칸은 비우기 · leave Title blank for several videos");
+    if (!count) problems.push(t("addLink"));
+    const solo = !!(target && target.solo);
+    const member = solo ? $("v-member").value : noMember;
+    if (solo && member === noMember) problems.push(t("pickMember"));
     const kind = target ? (target.id === F.standalone ? F.standalone : target.kind === F.series ? F.series : "playlist") : "playlist";
     results = checkLinks(links, {
       allowed: F.allowed[kind], standaloneTarget: kind === F.standalone,
       inTarget: new Set(target ? target.v.map((i) => F.videoIds[i]) : []),
-      formTitle: count === 1 && $("v-title").value.trim(),
+      formDate: realDate($("v-date").value),
     });
     showChecks($("v-checks"), results);
     const date = $("v-date").value.trim();
-    if (date && !realDate(date)) problems.push("날짜 형식 확인 · check the date");
-    title = F.issueTitle.video + (target ? target.title : "") + (count > 1 ? ` (+${count})` : "");
+    if (date && !realDate(date)) problems.push(t("badDateField"));
+    title = F.issueTitle.video + (target ? (target.title || F.standaloneTitle.ko) : "") + (count > 1 ? ` (+${count})` : "");
     body = [
       section(L.target, target && target.label), section(L.links, links), section(L.date, date),
-      section(L.title, $("v-title").value), section(L.channel, $("v-channel").value),
-      section(L.member, $("v-member").value),
+      section(L.member, member),
       section(L.era, target && target.id === F.standalone ? $("v-era").value : ""),
       `### ${L.options}\n\n- [${$("v-vertical").checked ? "x" : " "}] ${F.vertical}\n`,
     ].join("\n");
   } else {
     const links = $("p-links").value;
-    if (!$("p-title").value.trim()) problems.push("재생목록 제목을 넣으세요 · enter a playlist title");
-    if (!links.trim()) problems.push("링크를 넣으세요 · add a link");
-    results = checkLinks(links, { allowed: F.allowed.playlist, standaloneTarget: false, inTarget: new Set(), formTitle: "" });
+    if (!$("p-title").value.trim()) problems.push(t("needPlaylistTitle"));
+    if (!links.trim()) problems.push(t("addLink"));
+    results = checkLinks(links, { allowed: F.allowed.playlist, standaloneTarget: false, inTarget: new Set(), formDate: realDate($("p-date").value) });
     showChecks($("p-checks"), results);
     const date = $("p-date").value.trim();
-    if (date && !realDate(date)) problems.push("날짜 형식 확인 · check the date");
+    if (date && !realDate(date)) problems.push(t("badDateField"));
     title = F.issueTitle.playlist + $("p-title").value.trim();
     body = [
       section(L.kind, $("p-kind").value), section(L.newTitle, $("p-title").value),
@@ -312,7 +430,7 @@ function build() {
     ].join("\n");
   }
   const errors = results.filter((r) => r.level === "err").length;
-  if (errors) problems.push(`링크 ${errors}개 확인 필요 · ${errors} link(s) need fixing`);
+  if (errors) problems.push(t("linksToFix", errors));
   return { title, body, problems };
 }
 const issueUrl = (params) => `https://github.com/${repo}/issues/new?` + new URLSearchParams(params);
@@ -322,13 +440,11 @@ function update() {
   $("preview").textContent = `# ${title}\n\n${body}`;
   const url = issueUrl({ title, body });
   const tooLong = url.length > MAX_URL;
-  if (!repo) problems.unshift("저장소를 알 수 없음 (?repo=owner/name) · unknown repository");
+  if (!repo) problems.unshift(t("noRepo"));
   $("create").disabled = problems.length > 0;
-  $("create").textContent = tooLong ? "복사하고 이슈 열기 · Copy & open issue" : "GitHub 이슈 만들기 · Create issue";
+  $("create").textContent = t(tooLong ? "createLong" : "create");
   $("status").className = "status" + (problems.length ? " err" : "");
-  $("status").textContent = problems.length ? problems.join(" / ")
-    : tooLong ? "내용이 길어서 복사 후 붙여 넣기 · Long issue: it is copied, paste it into the body"
-    : "준비 완료 · Ready";
+  $("status").textContent = problems.length ? problems.join(" · ") : t(tooLong ? "long" : "ready");
   $("create").onclick = async () => {
     if (!tooLong) return window.open(url, "_blank", "noopener");
     await copy(body);
@@ -336,13 +452,13 @@ function update() {
   };
 }
 async function copy(text) {
-  try { await navigator.clipboard.writeText(text); $("status").textContent = "복사됨 · Copied"; }
-  catch { $("status").textContent = "복사 실패 — 미리 보기에서 직접 복사 · Copy failed — copy from the preview"; }
+  try { await navigator.clipboard.writeText(text); $("status").textContent = t("copied"); }
+  catch { $("status").textContent = t("copyFailed"); }
 }
 $("copy").onclick = () => copy(build().body);
-document.querySelectorAll("input, textarea, select").forEach((el) => el.addEventListener("input", update));
-document.querySelectorAll("select, input[type=checkbox]").forEach((el) => el.addEventListener("change", update));
-update();
+document.querySelectorAll("input, textarea, select:not(#lang)").forEach((el) => el.addEventListener("input", update));
+document.querySelectorAll("select:not(#lang), input[type=checkbox]").forEach((el) => el.addEventListener("change", update));
+applyLanguage();
 </script>
 </body>
 </html>

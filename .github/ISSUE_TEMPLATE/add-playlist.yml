@@ -5,7 +5,7 @@ title: "[새 재생목록] "
 body:
   - type: markdown
     attributes:
-      value: "이미 있는 재생목록에 넣을 때는 '새 영상 추가'를 쓰세요. 영상이 1개 이상 있어야 사이트에 보입니다.\n\nTo add to an existing playlist use 'Add videos'. A playlist needs at least one video to show."
+      value: "이미 있는 재생목록에 넣을 때는 '새 영상 추가'를 쓰세요. 영상이 1개 이상 있어야 사이트에 보입니다.\n\nTo add to an existing playlist use 'Add videos'. A playlist needs at least one video to show.\n\n⚠️ 저장소 주인과 협업자(Collaborator)가 만든 이슈만 봇이 처리합니다. 다른 사람의 이슈는 무시됩니다.\n\n⚠️ The bot only processes issues from the repository owner and collaborators; other issues are ignored."
   - type: dropdown
     id: kind
     attributes:
@@ -39,12 +39,12 @@ body:
     id: links
     attributes:
       label: "링크 / Links"
-      description: "한 줄에 영상 하나. 링크 뒤에 `|` 로 날짜·제목·썸네일을 붙일 수 있습니다. 유튜브는 제목이 자동이고, 틱톡·웨이브·티빙·넷플릭스는 제목이 필요합니다. 웨이브·넷플릭스는 썸네일(이미지 주소나 유튜브 링크)도 필요합니다.  \nOne video per line. After the link you can add `|` date, title, thumbnail. YouTube titles are automatic; TikTok, Wavve, TVING and Netflix need a title. Wavve and Netflix also need a thumbnail (an image URL or a YouTube link)."
-      placeholder: "https://youtu.be/abc123def45\nhttps://www.wavve.com/player/vod?contentid=… | 2026-11-04 | 988회 · 특집 | https://image.wavve.com/….jpg"
+      description: "한 줄에 영상 하나: `링크 | 제목 | 날짜 | 썸네일`. 유튜브는 링크만 (제목·날짜 자동). 틱톡은 `링크 | 제목` (날짜 자동). 티빙은 `링크 | 제목 | 날짜` (썸네일 자동). 웨이브·넷플릭스는 `링크 | 제목 | 날짜 | 썸네일` (썸네일은 이미지 주소나 유튜브 링크).  \nOne video per line: `link | title | date | thumbnail`. YouTube: link only (title and date automatic). TikTok: `link | title` (date automatic). TVING: `link | title | date` (thumbnail automatic). Wavve, Netflix: `link | title | date | thumbnail` (an image URL or a YouTube link)."
+      placeholder: "https://youtu.be/abc123def45\nhttps://www.wavve.com/player/vod?contentid=… | 988회 · 특집 | 2026-11-04 | https://image.wavve.com/….jpg"
     validations:
       required: true
   - type: input
     id: date
     attributes:
       label: "날짜 (선택) / Date (optional)"
-      description: "링크 뒤에 날짜가 없는 영상에 쓰입니다. 비워 두면 오늘(한국 시간).  \nUsed for links without their own date. Blank = today (Korea time)."
+      description: "모든 링크에 같은 날짜를 쓸 때만. 비워 두면 유튜브·틱톡은 자동, 다른 출처는 링크마다 날짜가 필요합니다.  \nOnly to give every link the same date. Blank = automatic for YouTube and TikTok; other sources need a date on each line."
