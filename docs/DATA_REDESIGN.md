@@ -63,7 +63,7 @@ data/
 | `members` | Member codes from `members.json` | `m`, `member` |
 | `url`, `thumb` | Watch page and thumbnail for non-YouTube sources | `link`, `img`/`thumb` |
 | `era` | TikTok: also listed as a standalone Short in that era | `TIKTOKS[].era` |
-| `tier` | Fan lives: membership tier (`NSWER 4th`, …) | `only` |
+| — | Fan lives: the membership tier lives on their playlist (`kind: "fans"`, `tier`) | `only` |
 
 ### Playlist
 
@@ -78,8 +78,11 @@ Fields: `id`, `kind`, `title`, `channel`, `desc`, `era` (album name or `데뷔 �
 `unit`, `chal`, `solo`. `videos` keeps the stored order (the page sorts by date;
 stored order breaks ties). Dropped because no code reads them: `featured`, `single`.
 
-Fan lives and standalone TikToks are videos, not playlists — the page builds their
-playlists itself (by `tier`, and by `era`).
+Fan lives are stored in one playlist per membership tier: `data/playlists/fans/fans-nswer-4th.json`
+with `kind: "fans"` and `tier: "NSWER 4th"` (the id is the one the page generates). The page still
+builds and translates the visible title and description itself from the tier, so the file's
+`title` is only used for search in `add.html`. Standalone TikToks are videos with an `era`; the page
+merges them into that era's Shorts playlist.
 
 ## Build
 
@@ -92,7 +95,7 @@ arrays, so the page code is unchanged. Per-list rules:
 | `PLAYLISTS` | playlists except `series`, in `order.json` order | `id title date` + `ch` + `v` + `x` + `link img via` |
 | `TIKTOK_SERIES` | `series` playlists | `id title date` + `tt` (TikTok) + `m` (single member) |
 | `TIKTOKS` | TikTok videos with `era`, oldest first | `id title date era` |
-| `FAN_LIVES` | `fans` videos, newest first | `id title date member only thumb` |
+| `FAN_LIVES` | videos of `fans` playlists, newest first, `only` = the playlist's `tier` | `id title date member only thumb` |
 
 Local preview: `python3 scripts/build.py && python3 -m http.server`.
 `.github/workflows/pages.yml` builds and deploys on every push to `main`

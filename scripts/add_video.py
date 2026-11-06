@@ -35,16 +35,16 @@ KIND_LABELS = {
     "original": ("NMIXX Original", "Original"), "shorts": ("쇼츠", "Shorts"),
     "stage": ("음악방송", "Music show"), "stagex": ("무대 비하인드", "Stage behind"),
     "tour": ("투어·콘서트", "Tour"), "univx": ("대학 축제 비하인드", "Festival behind"),
-    nd.SERIES: ("쇼츠 시리즈", "Shorts series"),
+    nd.SERIES: ("쇼츠 시리즈", "Shorts series"), nd.FANS: ("팬즈 라이브", "FANS live"),
 }
 STANDALONE = "tiktok-standalone"
 NEW_PLAYLIST_KINDS = {  # kind -> (id prefix, default channel; None = first video's)
     "guest": ("g", None), "tv": ("tv", None), "original": ("orig", "NMIXX"),
-    "live": ("live", "NMIXX"), "tour": ("tour", "NMIXX"),
+    "live": ("live", "NMIXX"), "tour": ("tour", "NMIXX"), nd.FANS: (None, None),
 }
 IMPLIED_CHANNEL = {"shorts": "NMIXX", "mv": "NMIXX", "nmixxetc": "NMIXX"}
 SOURCE_NAMES = {"youtube": "YouTube", "tiktok": "TikTok", "wavve": "Wavve", "tving": "TVING",
-                "netflix": "Netflix"}
+                "netflix": "Netflix", "fans": "FANS"}
 NO_RESPONSE = ("_No response_", "None")
 
 
@@ -71,6 +71,7 @@ YOUTUBE_ID = re.compile(
 TIKTOK_ID = re.compile(r"tiktok\.com/.*?/video/(\d+)")
 WAVVE_ID = re.compile(r"wavve\.com/.*?contentid=([A-Za-z0-9_.]+)")
 TVING_ID = re.compile(r"tving\.com/(?:player|contents)/(E\d+)")
+FANS_ID = re.compile(r"app\.fans/.*?/media/([A-Za-z0-9]+)")
 NETFLIX_ID = re.compile(r"netflix\.com/(?:[a-z]{2}(?:-[a-z]{2})?/)?(title|watch)/(\d+)")
 DATE = re.compile(r"(\d{4})\s*[-./]\s*(\d{1,2})\s*[-./]\s*(\d{1,2})\.?")
 
@@ -106,7 +107,12 @@ def kind_options():
 
 
 def allowed_sources(kind):
-    return {nd.SERIES: {"youtube", "tiktok"}, STANDALONE: {"tiktok"}}.get(kind, {"youtube", *nd.SOURCE_LABELS})
+    return {nd.SERIES: {"youtube", "tiktok"}, STANDALONE: {"tiktok"}, nd.FANS: {"fans"}}.get(
+        kind, {"youtube", *nd.SOURCE_LABELS})
+
+
+def needs_member(playlist):
+    return bool(playlist) and (playlist.get("solo") or playlist["kind"] == nd.FANS)
 
 
 def form_spec(data):
@@ -116,9 +122,10 @@ def form_spec(data):
     index = {vid: n for n, vid in enumerate(ids)}
     tgs = [{"id": p["id"], "label": option_label(p), "kind": p["kind"], "title": p["title"],
             "era": p.get("era", ""), "solo": bool(p.get("solo")), "unit": bool(p.get("unit")),
+            "needsMember": needs_member(p),
             "v": [index[v] for v in p["videos"]]} for p in playlists]
     tgs.append({"id": STANDALONE, "label": standalone_label(), "kind": STANDALONE,
-                "title": "", "era": "", "solo": False, "unit": False,
+                "title": "", "era": "", "solo": False, "unit": False, "needsMember": False,
                 "v": [index[vid] for vid, v in videos.items() if v["source"] == "tiktok" and "era" in v]})
     split = lambda text: dict(zip(("ko", "en"), text.split(" / ", 1)))
     return {
@@ -138,12 +145,14 @@ def form_spec(data):
         "standaloneTitle": {"ko": "시리즈 없는 틱톡", "en": "TikTok without a series"},
         "issueTitle": {"video": "[새 영상] ", "playlist": "[새 재생목록] "},
         "standalone": STANDALONE, "series": nd.SERIES,
-        "allowed": {k: sorted(allowed_sources(k)) for k in (nd.SERIES, STANDALONE, "playlist")},
-        "needsTitle": ["tiktok", *nd.SOURCE_LABELS], "needsThumb": ["wavve", "netflix"],
+        "allowed": {k: sorted(allowed_sources(k)) for k in (nd.SERIES, STANDALONE, nd.FANS, "playlist")},
+        "fansKind": nd.FANS,
+        "needsTitle": ["tiktok", "fans", *nd.SOURCE_LABELS], "needsThumb": ["wavve", "netflix", "fans"],
         "autoDate": ["youtube", "tiktok"],
         "sourceNames": SOURCE_NAMES,
         "patterns": {"youtube": YOUTUBE_ID.pattern, "tiktok": TIKTOK_ID.pattern, "wavve": WAVVE_ID.pattern,
-                     "tving": TVING_ID.pattern, "netflix": NETFLIX_ID.pattern, "date": DATE.pattern},
+                     "tving": TVING_ID.pattern, "netflix": NETFLIX_ID.pattern, "fans": FANS_ID.pattern,
+                     "date": DATE.pattern},
         "videoIds": ids, "targets": tgs,
     }
 
@@ -223,10 +232,10 @@ def header(name, about, title, intro_ko, intro_en):
 
 LINKS_KO = ("한 줄에 영상 하나: `링크 | 제목 | 날짜 | 썸네일`. 유튜브는 링크만 (제목·날짜 자동). "
             "틱톡은 `링크 | 제목` (날짜 자동). 티빙은 `링크 | 제목 | 날짜` (썸네일 자동). "
-            "웨이브·넷플릭스는 `링크 | 제목 | 날짜 | 썸네일` (썸네일은 이미지 주소나 유튜브 링크).")
+            "웨이브·넷플릭스·팬즈는 `링크 | 제목 | 날짜 | 썸네일` (썸네일은 이미지 주소나 유튜브 링크).")
 LINKS_EN = ("One video per line: `link | title | date | thumbnail`. YouTube: link only (title and date automatic). "
             "TikTok: `link | title` (date automatic). TVING: `link | title | date` (thumbnail automatic). "
-            "Wavve, Netflix: `link | title | date | thumbnail` (an image URL or a YouTube link).")
+            "Wavve, Netflix, FANS: `link | title | date | thumbnail` (an image URL or a YouTube link).")
 LINKS_EXAMPLE = ("https://youtu.be/abc123def45\n"
                  "https://www.wavve.com/player/vod?contentid=… | 988회 · 특집 | 2026-11-04 | https://image.wavve.com/….jpg")
 DATE_KO = "모든 링크에 같은 날짜를 쓸 때만. 비워 두면 유튜브·틱톡은 자동, 다른 출처는 링크마다 날짜가 필요합니다."
@@ -255,8 +264,8 @@ def sync_form(data=None):
     video += field("textarea", "links", F_LINKS, LINKS_KO, LINKS_EN, required=True, placeholder=LINKS_EXAMPLE)
     video += field("input", "date", F_DATE, DATE_KO, DATE_EN)
     video += field("dropdown", "member", F_MEMBER,
-                   "멤버 솔로 시리즈(tt-solo)에 넣을 때만 고르세요 (필수). 여러 멤버 영상은 유닛 시리즈에 넣으세요.",
-                   "Only for the member-solo series (tt-solo), where it is required. "
+                   "멤버 솔로 시리즈(tt-solo)와 팬즈 라이브에 넣을 때만 고르세요 (필수). 여러 멤버 영상은 유닛 시리즈에 넣으세요.",
+                   "Only for the member-solo series (tt-solo) and FANS lives, where it is required. "
                    "Videos with several members go into a unit series.", options=member_opts, default=0)
     video += field("dropdown", "era", F_ERA, "시리즈 없는 틱톡에만 쓰입니다. 발매 전 티저는 다음 앨범을 고르세요.",
                    "Only for TikToks without a series. For pre-release teasers pick the upcoming album.",
@@ -273,7 +282,8 @@ def sync_form(data=None):
         "이미 있는 재생목록에 넣을 때는 '새 영상 추가'를 쓰세요. 영상이 1개 이상 있어야 사이트에 보입니다.",
         "To add to an existing playlist use 'Add videos'. A playlist needs at least one video to show.")
     playlist += field("dropdown", "kind", F_KIND, required=True, options=kinds)
-    playlist += field("input", "title", F_NEW_TITLE, "사이트에 보일 재생목록 이름", "Playlist name shown on the site",
+    playlist += field("input", "title", F_NEW_TITLE, "사이트에 보일 재생목록 이름. 팬즈 라이브는 멤버십 기수 (예: NSWER 5th)",
+                      "Playlist name shown on the site. For FANS lives, the membership tier (e.g. NSWER 5th)",
                       required=True)
     playlist += field("input", "channel", F_CHANNEL,
                       "비워 두면 라이브·NMIXX Original·투어는 NMIXX, 웹예능·방송은 첫 영상의 유튜브 채널.",
@@ -281,6 +291,8 @@ def sync_form(data=None):
     playlist += field("textarea", "desc", F_DESC, "재생목록 소개 문구", "Short description of the playlist")
     playlist += field("textarea", "links", F_LINKS, LINKS_KO, LINKS_EN, required=True, placeholder=LINKS_EXAMPLE)
     playlist += field("input", "date", F_DATE, DATE_KO, DATE_EN)
+    playlist += field("dropdown", "member", F_MEMBER, "팬즈 라이브에만 (필수).", "Only for FANS lives (required).",
+                      options=member_opts, default=0)
 
     TEMPLATES.mkdir(parents=True, exist_ok=True)
     (TEMPLATES / "add-video.yml").write_text("\n".join(video) + "\n", encoding="utf-8")
@@ -339,8 +351,10 @@ def identify(url):
         return "tving", "tv-" + m.group(1), f"https://www.tving.com/player/{m.group(1)}"
     if m := NETFLIX_ID.search(url):
         return "netflix", "nf-" + m.group(2), f"https://www.netflix.com/{m.group(1)}/{m.group(2)}"
-    raise InputError(f"지원하지 않는 링크입니다: `{url}` (유튜브·틱톡·웨이브·티빙·넷플릭스만 가능)",
-                     f"Unsupported link: `{url}` (YouTube, TikTok, Wavve, TVING and Netflix only)")
+    if m := FANS_ID.search(url):
+        return "fans", m.group(1), None
+    raise InputError(f"지원하지 않는 링크입니다: `{url}` (유튜브·틱톡·웨이브·티빙·넷플릭스·팬즈만 가능)",
+                     f"Unsupported link: `{url}` (YouTube, TikTok, Wavve, TVING, Netflix and FANS only)")
 
 
 def parse_links(text, fallback_date):
@@ -477,6 +491,11 @@ def new_video(item, *, playlist_channel, member, vertical):
             raise InputError(f"{name} 영상은 썸네일이 필요합니다: `{item['id']}` (이미지 주소나 유튜브 링크를 `|` 뒤에)",
                              f"{name} videos need a thumbnail: `{item['id']}` (an image URL or YouTube link after `|`)")
         v["thumb"] = thumb
+    if source == "fans":
+        if not item["thumb"]:
+            raise InputError(f"팬즈 라이브는 썸네일이 필요합니다: `{item['id']}` (팬즈 앱의 이미지 주소를 `|` 뒤에)",
+                             f"FANS lives need a thumbnail: `{item['id']}` (the image address from the FANS app after `|`)")
+        v["thumb"] = item["thumb"]
     if vertical or item["short"]:
         v["vertical"] = True
     if member:
@@ -505,10 +524,11 @@ def add_videos(form, data):
     era_choice = form.get(F_ERA, "")
 
     kind = playlist["kind"] if playlist else STANDALONE
-    solo = bool(playlist and playlist.get("solo"))
+    solo = needs_member(playlist)
     if solo and not member:
-        raise InputError("멤버 솔로 시리즈에는 멤버를 골라야 합니다. 여러 멤버 영상은 유닛 시리즈에 넣어 주세요.",
-                         "The member-solo series needs a member. Put videos with several members in a unit series.")
+        raise InputError("멤버 솔로 시리즈와 팬즈 라이브에는 멤버를 골라야 합니다. 여러 멤버 영상은 유닛 시리즈에 넣어 주세요.",
+                         "The member-solo series and FANS lives need a member. "
+                         "Put videos with several members in a unit series.")
     allowed = allowed_sources(kind)
     channel = (playlist or {}).get("channel") or IMPLIED_CHANNEL.get(kind, "")
     added = []
@@ -564,14 +584,17 @@ def add_playlist(form, data):
     title = form.get(F_NEW_TITLE, "").strip()
     if not title:
         raise InputError("재생목록 제목을 입력해 주세요.", "Please enter a playlist title.")
+    if kind == nd.FANS:
+        return add_fans_tier(form, data, title)
     same = next((p for p in playlists if p["kind"] == kind and p["title"] == title), None)
     if same:
         raise InputError(f"같은 이름의 재생목록이 이미 있습니다: `{same['id']}`. 영상을 넣으려면 '새 영상 추가'를 쓰세요.",
                          f"A playlist with this name exists: `{same['id']}`. Use 'Add videos' to add to it.")
     items = parse_links(form.get(F_LINKS, ""), parse_date(form[F_DATE]) if form.get(F_DATE) else None)
     for item in items:
-        if item["source"] == "tiktok":
-            raise InputError("틱톡은 이 종류의 재생목록에 넣을 수 없습니다.", "TikToks cannot go into this kind of playlist.")
+        if item["source"] not in allowed_sources(kind):
+            raise InputError(f"{SOURCE_NAMES[item['source']]} 영상은 이 종류의 재생목록에 넣을 수 없습니다.",
+                             f"{SOURCE_NAMES[item['source']]} videos cannot go into this kind of playlist.")
 
     channel = form.get(F_CHANNEL, "").strip() or default_channel
     if not channel:
@@ -596,9 +619,36 @@ def add_playlist(form, data):
     return f"새 재생목록 추가: {title} (영상 {len(items)}개)", "\n".join(summary)
 
 
+def add_fans_tier(form, data, tier):
+    """A FANS membership tier (e.g. 'NSWER 5th') becomes a fan-live playlist; the page titles it itself."""
+    albums, members, videos, playlists = data
+    pid = nd.fans_id(tier)
+    if any(p["id"] == pid for p in playlists):
+        raise InputError(f"이미 있는 팬즈 티어입니다: `{pid}`. 영상을 넣으려면 '새 영상 추가'를 쓰세요.",
+                         f"This FANS tier already exists: `{pid}`. Use 'Add videos' to add to it.")
+    member_m = re.search(r"\(([A-Z]+)\)", form.get(F_MEMBER, ""))
+    if not member_m:
+        raise InputError("팬즈 라이브는 멤버를 골라야 합니다.", "FANS lives need a member.")
+    items = parse_links(form.get(F_LINKS, ""), parse_date(form[F_DATE]) if form.get(F_DATE) else None)
+    p = {"id": pid, "kind": nd.FANS, "title": nd.fans_title(tier), "tier": tier, "videos": []}
+    for item in items:
+        if item["source"] != "fans":
+            raise InputError("팬즈 라이브에는 팬즈 링크만 넣을 수 있습니다.", "Only FANS links can go into a FANS tier.")
+        if item["id"] in videos:
+            raise InputError(f"이미 있는 팬즈 라이브입니다: `{item['id']}`", f"This FANS live already exists: `{item['id']}`")
+        videos[item["id"]] = new_video(item, playlist_channel="", member=member_m.group(1), vertical=False)
+        insert_by_date(p["videos"], item["id"], videos[item["id"]]["date"], videos)
+    last = max((n for n, q in enumerate(playlists) if q["kind"] == nd.FANS), default=len(playlists) - 1)
+    playlists.insert(last + 1, p)
+    summary = [f"✅ 새 팬즈 티어 **{option_label(p)}** 을 만들고 라이브 {len(items)}개를 넣었습니다. / "
+               f"Created FANS tier with {len(items)} lives.", ""]
+    summary += [video_line(i, videos[i]) for i in p["videos"]]
+    return f"새 팬즈 티어 추가: {tier} (라이브 {len(items)}개)", "\n".join(summary)
+
+
 def video_line(vid, v):
-    link = v.get("url") or (f"https://www.tiktok.com/video/{vid}" if v["source"] == "tiktok"
-                            else f"https://youtu.be/{vid}")
+    link = v.get("url") or {"tiktok": f"https://www.tiktok.com/video/{vid}",
+                            "fans": f"https://app.fans/community/nmixx/media/{vid}"}.get(v["source"], f"https://youtu.be/{vid}")
     extras = [v["date"], v["title"], v.get("channel"), "세로" if v.get("vertical") else None,
               ",".join(v.get("members", [])) or None, v.get("era")]
     return "- " + " · ".join(filter(None, extras)) + f" — {link}"

@@ -35,15 +35,16 @@ No code editing needed — everything happens on github.com, also from a phone.
    | TikTok | `링크 \| 제목` | 날짜 (영상 id에서) / date (from the id) | 쇼츠 시리즈, 시리즈 없는 틱톡 / Shorts series, TikTok without a series |
    | TVING | `링크 \| 제목 \| 날짜` | 썸네일 / thumbnail | 재생목록 / playlists |
    | Wavve, Netflix | `링크 \| 제목 \| 날짜 \| 썸네일` | — | 재생목록 / playlists |
+   | FANS | `링크 \| 제목 \| 날짜 \| 썸네일` + 멤버 / member | — | 팬즈 라이브 기수 / FANS tier playlists |
 
-   썸네일은 이미지 주소나 유튜브 링크 (그 영상의 썸네일). 칸 순서가 바뀌어도 알아서 구분합니다.
+   썸네일은 이미지 주소 (웨이브·팬즈는 이미지 우클릭 → '이미지 주소 복사') 나 유튜브 링크 (그 영상의 썸네일). 칸 순서가 바뀌어도 알아서 구분합니다.
    **모든 링크에 같은 날짜** 칸은 날짜가 없는 줄 모두에 그 날짜를 씁니다 (자동 날짜보다 우선). 보통은 비워 둡니다.
-   A thumbnail is an image URL or a YouTube link (its thumbnail is used); parts are recognised in any order.
+   A thumbnail is an image URL (on Wavve or FANS: right-click the image → "Copy image address") or a YouTube link (its thumbnail is used); parts are recognised in any order.
    **Same date for all links** applies to every line without its own date (overriding automatic dates); usually left blank.
 
-   **멤버**: 멤버 솔로 시리즈(`tt-solo`)에 넣을 때만 나타나며 꼭 골라야 합니다. 여러 멤버가 나오는 영상은
+   **멤버**: 멤버 솔로 시리즈(`tt-solo`)와 팬즈 라이브에 넣을 때만 나타나며 꼭 골라야 합니다. 여러 멤버가 나오는 영상은
    해당 유닛 시리즈(예: `tt-unit-lily-haewon`)에 넣으면 됩니다.
-   **Member** only appears for the member-solo series (`tt-solo`), where it is required. Videos with several
+   **Member** only appears for the member-solo series (`tt-solo`) and FANS lives, where it is required. Videos with several
    members go into the matching unit series (e.g. `tt-unit-lily-haewon`).
    `add.html` 은 한국어와 영어로 볼 수 있습니다 (사이트와 같은 언어 설정). `add.html` is available in Korean and English.
 4. 제출하면 1~2분 뒤 봇이 추가하고 결과를 댓글로 남긴 뒤 이슈를 닫습니다. 사이트에는 몇 분 안에 반영됩니다.
@@ -57,6 +58,8 @@ No code editing needed — everything happens on github.com, also from a phone.
 라이브, 투어·콘서트), 제목, 첫 영상 링크를 넣습니다. Pick a kind (web show, TV, NMIXX Original, live,
 tour), a title and the first links. 앨범 활동별 재생목록 (음악방송·MV·쇼츠·MIXX 스페셜) 은 이 양식으로
 만들 수 없습니다. Album-era playlists (music shows, MV, Shorts, specials) cannot be created this way.
+새 팬즈 멤버십 기수는 종류 '팬즈 라이브', 제목에 기수 (예: `NSWER 5th`), 멤버를 고르면 됩니다.
+A new FANS membership tier: kind "FANS live", the tier as the title (e.g. `NSWER 5th`), and a member.
 
 저장소 주인과 협업자가 올린 이슈만 처리됩니다. Only issues from the owner and collaborators are processed.
 

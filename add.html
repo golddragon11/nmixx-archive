@@ -128,7 +128,9 @@
   <section id="pane-playlist" hidden>
     <div class="row">
       <fieldset><label for="p-kind" data-t="kind"></label><select id="p-kind"></select></fieldset>
-      <fieldset><label for="p-title" data-t="playlistTitle"></label><input id="p-title" type="text"></fieldset>
+      <fieldset><label for="p-title"><span data-t="playlistTitle"></span><span class="hint" id="p-title-hint"></span></label><input id="p-title" type="text"></fieldset>
+      <fieldset id="p-memberBox" hidden><label for="p-member"><span data-t="member"></span><span class="hint" data-t="fansMemberHint"></span></label>
+        <select id="p-member"></select></fieldset>
       <fieldset><label for="p-channel"><span data-t="channel"></span><span class="hint" data-t="autoHint"></span></label>
         <input id="p-channel" type="text"></fieldset>
       <fieldset><label for="p-date"><span data-t="date"></span><span class="hint" data-t="dateHint"></span></label>
@@ -173,9 +175,11 @@ const TEXT = {
       + "<tr><td>유튜브</td><td><code>링크</code></td><td>제목, 날짜, 채널</td></tr>"
       + "<tr><td>틱톡</td><td><code>링크 | 제목</code></td><td>날짜</td></tr>"
       + "<tr><td>티빙</td><td><code>링크 | 제목 | 날짜</code></td><td>썸네일</td></tr>"
-      + "<tr><td>웨이브, 넷플릭스</td><td><code>링크 | 제목 | 날짜 | 썸네일</code></td><td>—</td></tr></table>"
-      + "<p class='hint'>날짜는 2026-11-04 형식. 썸네일은 이미지 주소나 유튜브 링크 (그 영상의 썸네일을 씀). 순서가 바뀌어도 알아서 구분합니다.</p>",
-    member: "멤버", memberHint: "솔로 시리즈는 멤버가 필요합니다. 여러 멤버 영상은 유닛 시리즈에 넣으세요.",
+      + "<tr><td>웨이브, 넷플릭스</td><td><code>링크 | 제목 | 날짜 | 썸네일</code></td><td>—</td></tr>"
+      + "<tr><td>팬즈</td><td><code>링크 | 제목 | 날짜 | 썸네일</code> + 멤버</td><td>—</td></tr></table>"
+      + "<p class='hint'>날짜는 2026-11-04 형식. 썸네일은 이미지 주소 (웨이브·팬즈는 이미지를 우클릭해 '이미지 주소 복사') 나 유튜브 링크 (그 영상의 썸네일). 순서가 바뀌어도 알아서 구분합니다.</p>",
+    member: "멤버", memberHint: "솔로 시리즈와 팬즈 라이브는 멤버가 필요합니다. 여러 멤버 영상은 유닛 시리즈에 넣으세요.",
+    fansMemberHint: "팬즈 라이브는 멤버가 필요합니다", fansTierHint: "팬즈 라이브는 멤버십 기수 (예: NSWER 5th)",
     era: "활동 시기", eraHint: "발매 전 티저는 다음 앨범을 고르세요.",
     date: "모든 링크에 같은 날짜", dateHint: "선택 — 비우면 유튜브·틱톡은 자동, 다른 출처는 링크마다 날짜",
     channel: "채널", autoHint: "비우면 자동",
@@ -184,7 +188,7 @@ const TEXT = {
     ready: "준비 완료", long: "내용이 길어서 복사됩니다. 열린 이슈 본문에 붙여 넣으세요.",
     copied: "복사됨", copyFailed: "복사 실패 — 미리 보기에서 직접 복사하세요",
     noRepo: "저장소를 알 수 없습니다 (?repo=owner/name)", pickPlaylist: "재생목록을 고르세요", addLink: "링크를 넣으세요",
-    pickMember: "솔로 시리즈는 멤버를 고르세요",
+    pickMember: "멤버를 고르세요 (솔로 시리즈·팬즈 라이브)",
     badDateField: "날짜 형식을 확인하세요", needPlaylistTitle: "재생목록 제목을 넣으세요",
     linksToFix: (n) => `링크 ${n}개를 고쳐야 합니다`, more: (n) => `+${n}`,
     unsupported: "지원하지 않는 링크", invalidDate: (d) => `없는 날짜: ${d}`,
@@ -209,9 +213,11 @@ const TEXT = {
       + "<tr><td>YouTube</td><td><code>link</code></td><td>title, date, channel</td></tr>"
       + "<tr><td>TikTok</td><td><code>link | title</code></td><td>date</td></tr>"
       + "<tr><td>TVING</td><td><code>link | title | date</code></td><td>thumbnail</td></tr>"
-      + "<tr><td>Wavve, Netflix</td><td><code>link | title | date | thumbnail</code></td><td>—</td></tr></table>"
-      + "<p class='hint'>Dates look like 2026-11-04. A thumbnail is an image URL or a YouTube link (its thumbnail is used). Parts are recognised even if the order differs.</p>",
-    member: "Member", memberHint: "The solo series needs a member. Videos with several members go into a unit series.",
+      + "<tr><td>Wavve, Netflix</td><td><code>link | title | date | thumbnail</code></td><td>—</td></tr>"
+      + "<tr><td>FANS</td><td><code>link | title | date | thumbnail</code> + member</td><td>—</td></tr></table>"
+      + "<p class='hint'>Dates look like 2026-11-04. A thumbnail is an image URL (on Wavve or FANS, right-click the image → “Copy image address”) or a YouTube link (its thumbnail is used). Parts are recognised even if the order differs.</p>",
+    member: "Member", memberHint: "The solo series and FANS lives need a member. Videos with several members go into a unit series.",
+    fansMemberHint: "FANS lives need a member", fansTierHint: "For FANS lives: the membership tier (e.g. NSWER 5th)",
     era: "Era", eraHint: "For pre-release teasers pick the upcoming album.",
     date: "Same date for all links", dateHint: "Optional — blank = automatic for YouTube and TikTok; other sources need a date per line",
     channel: "Channel", autoHint: "Blank = automatic",
@@ -220,7 +226,7 @@ const TEXT = {
     ready: "Ready", long: "This issue is long, so it is copied — paste it into the issue body.",
     copied: "Copied", copyFailed: "Copy failed — copy it from the preview",
     noRepo: "Unknown repository (add ?repo=owner/name)", pickPlaylist: "Pick a playlist", addLink: "Add a link",
-    pickMember: "Pick a member for the solo series",
+    pickMember: "Pick a member (solo series, FANS lives)",
     badDateField: "Check the date", needPlaylistTitle: "Enter a playlist title",
     linksToFix: (n) => `${n} link(s) need fixing`, more: (n) => `+${n}`,
     unsupported: "Unsupported link", invalidDate: (d) => `Invalid date: ${d}`,
@@ -247,6 +253,7 @@ function applyLanguage() {
   document.querySelectorAll("[data-t-html]").forEach((el) => { el.innerHTML = t(el.dataset.tHtml); });
   document.querySelectorAll("[data-t-ph]").forEach((el) => { el.placeholder = t(el.dataset.tPh); });
   fill($("v-member"), F.memberChoices);
+  fill($("p-member"), F.memberChoices);
   fill($("v-era"), F.eraChoices);
   fill($("p-kind"), F.kindChoices);
   if (target) pick(target);
@@ -313,7 +320,7 @@ function pick(tg) {
   $("pickedBox").hidden = false;
   $("searchBox").hidden = true;
   $("eraBox").hidden = tg.id !== F.standalone;
-  $("memberBox").hidden = !tg.solo;
+  $("memberBox").hidden = !tg.needsMember;
   update();
 }
 $("q").addEventListener("input", search);
@@ -338,6 +345,7 @@ function identify(link) {
   if ((m = link.match(re.wavve))) return { source: "wavve", id: "wv-" + m[1].replace(/\.\d+$/, "") };
   if ((m = link.match(re.tving))) return { source: "tving", id: "tv-" + m[1] };
   if ((m = link.match(re.netflix))) return { source: "netflix", id: "nf-" + m[2] };
+  if ((m = link.match(re.fans))) return { source: "fans", id: m[1] };
   return null;
 }
 function checkLinks(text, { allowed, inTarget, standaloneTarget, formDate }) {
@@ -395,10 +403,11 @@ function build() {
     if (!target) problems.push(t("pickPlaylist"));
     const links = $("v-links").value, count = links.split("\n").filter((l) => l.trim()).length;
     if (!count) problems.push(t("addLink"));
-    const solo = !!(target && target.solo);
+    const solo = !!(target && target.needsMember);
     const member = solo ? $("v-member").value : noMember;
     if (solo && member === noMember) problems.push(t("pickMember"));
-    const kind = target ? (target.id === F.standalone ? F.standalone : target.kind === F.series ? F.series : "playlist") : "playlist";
+    const kind = !target ? "playlist" : target.id === F.standalone ? F.standalone
+      : [F.series, F.fansKind].includes(target.kind) ? target.kind : "playlist";
     results = checkLinks(links, {
       allowed: F.allowed[kind], standaloneTarget: kind === F.standalone,
       inTarget: new Set(target ? target.v.map((i) => F.videoIds[i]) : []),
@@ -416,9 +425,14 @@ function build() {
     ].join("\n");
   } else {
     const links = $("p-links").value;
+    const fans = $("p-kind").value.endsWith(`(${F.fansKind})`);
+    $("p-memberBox").hidden = !fans;
+    $("p-title-hint").textContent = fans ? t("fansTierHint") : "";
+    if (fans && $("p-member").value === noMember) problems.push(t("pickMember"));
     if (!$("p-title").value.trim()) problems.push(t("needPlaylistTitle"));
     if (!links.trim()) problems.push(t("addLink"));
-    results = checkLinks(links, { allowed: F.allowed.playlist, standaloneTarget: false, inTarget: new Set(), formDate: realDate($("p-date").value) });
+    results = checkLinks(links, { allowed: fans ? F.allowed[F.fansKind] : F.allowed.playlist, standaloneTarget: false,
+                                  inTarget: new Set(), formDate: realDate($("p-date").value) });
     showChecks($("p-checks"), results);
     const date = $("p-date").value.trim();
     if (date && !realDate(date)) problems.push(t("badDateField"));
@@ -426,7 +440,7 @@ function build() {
     body = [
       section(L.kind, $("p-kind").value), section(L.newTitle, $("p-title").value),
       section(L.channel, $("p-channel").value), section(L.desc, $("p-desc").value),
-      section(L.links, links), section(L.date, date),
+      section(L.links, links), section(L.date, date), section(L.member, fans ? $("p-member").value : noMember),
     ].join("\n");
   }
   const errors = results.filter((r) => r.level === "err").length;

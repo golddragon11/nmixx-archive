@@ -8,7 +8,7 @@ import nmixx_data as nd
 
 SOURCES = {"youtube", "tiktok", "fans", *nd.SOURCE_LABELS}
 PLAYLIST_KINDS = {"live", "tv", "guest", "mv", "nmixxetc", "original", "shorts",
-                  "stage", "stagex", "tour", "univx", nd.SERIES}
+                  "stage", "stagex", "tour", "univx", nd.SERIES, nd.FANS}
 SERIES_SOURCES = {"youtube", "tiktok"}
 PLAYLIST_SOURCES = {"youtube", *nd.SOURCE_LABELS}
 
@@ -59,7 +59,9 @@ def validate(albums, members, videos, playlists, check_files=True):
             err(f"{where}: has no videos")
         if len(set(p.get("videos", []))) != len(p.get("videos", [])):
             err(f"{where}: lists a video twice")
-        allowed = SERIES_SOURCES if p.get("kind") == nd.SERIES else PLAYLIST_SOURCES
+        allowed = {nd.SERIES: SERIES_SOURCES, nd.FANS: {"fans"}}.get(p.get("kind"), PLAYLIST_SOURCES)
+        if p.get("kind") == nd.FANS and (not p.get("tier") or p["id"] != nd.fans_id(p["tier"])):
+            err(f"{where}: fan-live playlists need a tier and the id {nd.fans_id(p.get('tier') or '')!r}")
         for vid in p.get("videos", []):
             used.add(vid)
             if vid not in videos:
@@ -82,11 +84,11 @@ def validate(albums, members, videos, playlists, check_files=True):
                 err(f"{where}: unknown member {code!r}")
         if source in nd.SOURCE_LABELS and not (v.get("url") and v.get("thumb")):
             err(f"{where}: {source} videos need url and thumb")
-        if source == "fans" and not (v.get("tier") and v.get("thumb")):
-            err(f"{where}: fan lives need tier and thumb")
+        if source == "fans" and not (v.get("thumb") and len(v.get("members", [])) == 1):
+            err(f"{where}: fan lives need a thumb and exactly one member")
         if "era" in v and (source != "tiktok" or v["era"] not in eras):
             err(f"{where}: era {v['era']!r} is only allowed on TikToks and must be a known album")
-        standalone = source == "fans" or (source == "tiktok" and "era" in v)
+        standalone = source == "tiktok" and "era" in v
         if vid not in used and not standalone:
             err(f"{where}: not in any playlist")
 

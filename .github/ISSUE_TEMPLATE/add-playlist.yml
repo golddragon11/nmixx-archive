@@ -16,13 +16,14 @@ body:
         - "NMIXX Original · Original (original)"
         - "라이브 · Live (live)"
         - "투어·콘서트 · Tour (tour)"
+        - "팬즈 라이브 · FANS live (fans)"
     validations:
       required: true
   - type: input
     id: title
     attributes:
       label: "제목 / Title"
-      description: "사이트에 보일 재생목록 이름  \nPlaylist name shown on the site"
+      description: "사이트에 보일 재생목록 이름. 팬즈 라이브는 멤버십 기수 (예: NSWER 5th)  \nPlaylist name shown on the site. For FANS lives, the membership tier (e.g. NSWER 5th)"
     validations:
       required: true
   - type: input
@@ -39,7 +40,7 @@ body:
     id: links
     attributes:
       label: "링크 / Links"
-      description: "한 줄에 영상 하나: `링크 | 제목 | 날짜 | 썸네일`. 유튜브는 링크만 (제목·날짜 자동). 틱톡은 `링크 | 제목` (날짜 자동). 티빙은 `링크 | 제목 | 날짜` (썸네일 자동). 웨이브·넷플릭스는 `링크 | 제목 | 날짜 | 썸네일` (썸네일은 이미지 주소나 유튜브 링크).  \nOne video per line: `link | title | date | thumbnail`. YouTube: link only (title and date automatic). TikTok: `link | title` (date automatic). TVING: `link | title | date` (thumbnail automatic). Wavve, Netflix: `link | title | date | thumbnail` (an image URL or a YouTube link)."
+      description: "한 줄에 영상 하나: `링크 | 제목 | 날짜 | 썸네일`. 유튜브는 링크만 (제목·날짜 자동). 틱톡은 `링크 | 제목` (날짜 자동). 티빙은 `링크 | 제목 | 날짜` (썸네일 자동). 웨이브·넷플릭스·팬즈는 `링크 | 제목 | 날짜 | 썸네일` (썸네일은 이미지 주소나 유튜브 링크).  \nOne video per line: `link | title | date | thumbnail`. YouTube: link only (title and date automatic). TikTok: `link | title` (date automatic). TVING: `link | title | date` (thumbnail automatic). Wavve, Netflix, FANS: `link | title | date | thumbnail` (an image URL or a YouTube link)."
       placeholder: "https://youtu.be/abc123def45\nhttps://www.wavve.com/player/vod?contentid=… | 988회 · 특집 | 2026-11-04 | https://image.wavve.com/….jpg"
     validations:
       required: true
@@ -48,3 +49,17 @@ body:
     attributes:
       label: "날짜 (선택) / Date (optional)"
       description: "모든 링크에 같은 날짜를 쓸 때만. 비워 두면 유튜브·틱톡은 자동, 다른 출처는 링크마다 날짜가 필요합니다.  \nOnly to give every link the same date. Blank = automatic for YouTube and TikTok; other sources need a date on each line."
+  - type: dropdown
+    id: member
+    attributes:
+      label: "멤버 (선택) / Member (optional)"
+      description: "팬즈 라이브에만 (필수).  \nOnly for FANS lives (required)."
+      options:
+        - "없음 / None"
+        - "해원 (HAEWON)"
+        - "릴리 (LILY)"
+        - "설윤 (SULLYOON)"
+        - "배이 (BAE)"
+        - "지우 (JIWOO)"
+        - "규진 (KYUJIN)"
+      default: 0

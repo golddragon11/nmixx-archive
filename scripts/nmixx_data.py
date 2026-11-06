@@ -12,8 +12,19 @@ VIDEO_DIR = DATA / "videos"
 
 SOURCE_LABELS = {"wavve": "웨이브", "tving": "티빙", "netflix": "넷플릭스"}
 SERIES = "series"
+FANS = "fans"
 PRE_DEBUT = "데뷔 전"
 DROPPED_PLAYLIST_FIELDS = ("featured", "single")
+
+
+def fans_id(tier):
+    """Same id the page generates for a fan-live playlist: 'NSWER 4th' -> 'fans-nswer-4th'."""
+    return "fans-" + re.sub(r"\W+", "-", (tier or "etc").lower())
+
+
+def fans_title(tier):
+    """Korean title the page shows (it translates it itself); used for search in add.html."""
+    return "팬즈 라이브 · " + re.sub(r"^NSWER (\d+)(st|nd|rd|th)$", r"NSWER \1기", tier)
 
 
 def era_slug(era):
@@ -109,8 +120,12 @@ def member_names(codes, members):
 
 def build_legacy(albums, members, videos, playlists):
     """Return the five arrays (ALBUMS, PLAYLISTS, FAN_LIVES, TIKTOKS, TIKTOK_SERIES)."""
-    out_playlists, series = [], []
+    out_playlists, series, fan_lives = [], [], []
     for p in playlists:
+        if p["kind"] == FANS:
+            # stored oldest first like other playlists; the page's list is newest first
+            fan_lives += [[vid, videos[vid], p["tier"]] for vid in reversed(p["videos"])]
+            continue
         if p["kind"] == SERIES:
             s = {"id": p["id"], "tag": p["tag"], "title": p["title"],
                  "member": member_names(p.get("members", []), members)}
@@ -133,14 +148,13 @@ def build_legacy(albums, members, videos, playlists):
 
     tiktoks = sorted(([vid, v] for vid, v in videos.items() if v["source"] == "tiktok" and "era" in v),
                      key=lambda x: x[1]["date"])
-    fans = sorted(([vid, v] for vid, v in videos.items() if v["source"] == "fans"),
-                  key=lambda x: x[1]["date"], reverse=True)
+    fans = sorted(fan_lives, key=lambda x: x[1]["date"], reverse=True)
     return {
         "ALBUMS": [{"name": a["name"], "date": a["date"]} for a in reversed(albums)],  # page wants newest first
         "PLAYLISTS": out_playlists,
         "FAN_LIVES": [{"id": vid, "title": v["title"], "date": v["date"],
                        "member": member_names(v.get("members", []), members),
-                       "only": v["tier"], "thumb": v["thumb"]} for vid, v in fans],
+                       "only": tier, "thumb": v["thumb"]} for vid, v, tier in fans],
         "TIKTOKS": [{"id": vid, "title": v["title"], "date": v["date"], "era": v["era"]}
                     for vid, v in tiktoks],
         "TIKTOK_SERIES": series,

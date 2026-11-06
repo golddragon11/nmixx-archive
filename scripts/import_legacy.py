@@ -92,10 +92,12 @@ def convert(legacy):
                 raise ValueError(f"video {vid}: conflicting {k}: {v[k]!r} vs {val!r}")
             v[k] = val
 
+    tiers = {}
     for f in legacy["FAN_LIVES"]:
         check_fields(f, {"id", "title", "date", "member", "only", "thumb"}, "fan live")
         put(f["id"], {"source": "fans", "title": f["title"], "date": f["date"],
-                      "members": codes(f["member"]), "tier": f["only"], "thumb": f["thumb"]})
+                      "members": codes(f["member"]), "thumb": f["thumb"]})
+        tiers.setdefault(f["only"], []).append(f["id"])
     for t in legacy["TIKTOKS"]:
         check_fields(t, {"id", "title", "date", "era"}, "tiktok")
         put(t["id"], {"source": "tiktok", "title": t["title"], "date": t["date"], "era": t["era"]})
@@ -145,6 +147,10 @@ def convert(legacy):
             put(e["id"], fields)
         q["videos"] = [e["id"] for e in s["eps"]]
         playlists.append(q)
+
+    for tier, ids in tiers.items():  # FAN_LIVES is newest first; playlists are stored oldest first
+        playlists.append({"id": nd.fans_id(tier), "kind": nd.FANS, "title": nd.fans_title(tier),
+                          "tier": tier, "videos": ids[::-1]})
 
     albums = [{"name": a["name"], "date": a["date"]} for a in reversed(legacy["ALBUMS"])]  # oldest first
     ids = [p["id"] for p in playlists]
