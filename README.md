@@ -25,7 +25,7 @@ No code editing needed — everything happens on github.com, also from a phone.
    **Links**: one video per line as `link | title | date | thumbnail`, writing only what each source needs.
 
    ```
-   https://youtu.be/abc123def45
+   https://youtu.be/abc123def45 | 2026-11-05
    https://www.tiktok.com/@nmixx_official/video/7704213048080207122 | 𝑵𝑬𝑶𝑵 🐶〃🐱
    https://www.tving.com/player/E004548958 | 415회 · 엔믹스 릴리 | 2026-05-02
    https://www.wavve.com/player/stream/vod?contentid=M_EP202610297364.1 | 988회 · 특집 | 2026-11-04 | https://image.wavve.com/….jpg
@@ -33,16 +33,16 @@ No code editing needed — everything happens on github.com, also from a phone.
 
    | 출처 / Source | 쓰는 법 / Write | 자동 / Automatic | 넣을 수 있는 곳 / Allowed in |
    |---|---|---|---|
-   | YouTube | `링크` | 제목, 날짜 (유튜브 게시일, 한국 시간), 채널 / title, date (publish date, Korea time), channel | 모든 재생목록 (팬즈 제외) / every playlist except FANS |
+   | YouTube | `링크 \| 날짜` (한국 시간 업로드 날짜 / upload date, Korea time) | 제목, 채널 / title, channel | 모든 재생목록 (팬즈 제외) / every playlist except FANS |
    | TikTok | `링크 \| 제목` | 날짜 (영상 id에서) / date (from the id) | 쇼츠 재생목록, 쇼츠 시리즈 / Shorts playlists, Shorts series |
    | TVING | `링크 \| 제목 \| 날짜` | 썸네일 / thumbnail | 재생목록 / playlists |
    | Wavve, Netflix | `링크 \| 제목 \| 날짜 \| 썸네일` | — | 재생목록 / playlists |
    | FANS | `링크 \| 제목 \| 날짜 \| 썸네일` + 멤버 / member | — | 팬즈 라이브 기수 / FANS tier playlists |
 
    썸네일은 이미지 주소 (웨이브·팬즈는 이미지 우클릭 → '이미지 주소 복사') 나 유튜브 링크 (그 영상의 썸네일). 칸 순서가 바뀌어도 알아서 구분합니다.
-   **모든 링크에 같은 날짜** 칸은 날짜가 없는 줄 모두에 그 날짜를 씁니다 (자동 날짜보다 우선). 보통은 비워 둡니다.
+   **모든 링크에 같은 날짜** 칸은 날짜가 없는 줄 모두에 그 날짜를 씁니다 — 같은 날 올라온 영상을 여러 개 넣을 때 편합니다.
    A thumbnail is an image URL (on Wavve or FANS: right-click the image → "Copy image address") or a YouTube link (its thumbnail is used); parts are recognised in any order.
-   **Same date for all links** applies to every line without its own date (overriding automatic dates); usually left blank.
+   **Same date for all links** applies to every line without its own date — handy for a batch uploaded the same day.
 
    **멤버**: 멤버 솔로 시리즈(`tt-solo`)와 팬즈 라이브에 넣을 때만 나타나며 꼭 골라야 합니다. 여러 멤버가 나오는 영상은
    해당 유닛 시리즈(예: `tt-unit-lily-haewon`)에 넣으면 됩니다.

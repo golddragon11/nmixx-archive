@@ -158,7 +158,7 @@ def form_spec(data):
         "allowed": {k: sorted(allowed_sources(k)) for k in (nd.SERIES, "shorts", nd.FANS, "playlist")},
         "fansKind": nd.FANS,
         "needsTitle": ["tiktok", "fans", *nd.SOURCE_LABELS], "needsThumb": ["wavve", "netflix", "fans"],
-        "autoDate": ["youtube", "tiktok"],
+        "autoDate": ["tiktok"],
         "sourceNames": SOURCE_NAMES,
         "patterns": {"youtube": YOUTUBE_ID.pattern, "tiktok": TIKTOK_ID.pattern, "wavve": WAVVE_ID.pattern,
                      "tving": TVING_ID.pattern, "netflix": NETFLIX_ID.pattern, "fans": FANS_ID.pattern,
@@ -236,17 +236,17 @@ def header(name, about, title, intro_ko, intro_en):
             f"      value: {q(intro_ko + chr(10) + chr(10) + intro_en + chr(10) + chr(10) + COLLAB_KO + chr(10) + chr(10) + COLLAB_EN)}"]
 
 
-LINKS_KO = ("한 줄에 영상 하나: `링크 | 제목 | 날짜 | 썸네일`. 유튜브는 링크만 (제목·날짜 자동). "
+LINKS_KO = ("한 줄에 영상 하나: `링크 | 제목 | 날짜 | 썸네일`. 유튜브는 `링크 | 날짜` (제목 자동, 날짜는 한국 시간 업로드 날짜). "
             "틱톡은 `링크 | 제목` (날짜 자동). 티빙은 `링크 | 제목 | 날짜` (썸네일 자동). "
             "웨이브·넷플릭스·팬즈는 `링크 | 제목 | 날짜 | 썸네일` (썸네일은 이미지 주소나 유튜브 링크).")
-LINKS_EN = ("One video per line: `link | title | date | thumbnail`. YouTube: link only (title and date automatic). "
+LINKS_EN = ("One video per line: `link | title | date | thumbnail`. YouTube: `link | date` (title automatic; the upload date in Korea time). "
             "TikTok: `link | title` (date automatic). TVING: `link | title | date` (thumbnail automatic). "
             "Wavve, Netflix, FANS: `link | title | date | thumbnail` (an image URL or a YouTube link).")
-LINKS_EXAMPLE = ("https://youtu.be/abc123def45\n"
+LINKS_EXAMPLE = ("https://youtu.be/abc123def45 | 2026-11-05\n"
                  "https://www.wavve.com/player/vod?contentid=… | 988회 · 특집 | 2026-11-04 | https://image.wavve.com/….jpg")
-DATE_KO = "모든 링크에 같은 날짜를 쓸 때만. 비워 두면 유튜브·틱톡은 자동, 다른 출처는 링크마다 날짜가 필요합니다."
-DATE_EN = ("Only to give every link the same date. Blank = automatic for YouTube and TikTok; "
-           "other sources need a date on each line.")
+DATE_KO = "날짜가 없는 링크 모두에 쓰입니다 (한국 시간, 예: 2026-11-05). 비워 두면 링크마다 날짜가 필요합니다 (틱톡은 자동)."
+DATE_EN = ("Used for every link without its own date (Korea time, e.g. 2026-11-05). "
+           "Blank = each line needs a date (TikTok is automatic).")
 
 
 def sync_form(data=None):
@@ -424,25 +424,6 @@ def youtube_info(vid):
                          f"Could not read video info from YouTube: `{vid}` ({e}). Is it private or deleted?")
 
 
-def youtube_date(vid):
-    """Publish date in Korea time, read from the watch page (no API key)."""
-    try:
-        page = fetch(f"https://www.youtube.com/watch?v={vid}")
-    except Exception:
-        return None
-    m = (re.search(r'itemprop="datePublished" content="([^"]+)"', page)
-         or re.search(r'"publishDate":"([^"]+)"', page)
-         or re.search(r'itemprop="uploadDate" content="([^"]+)"', page))
-    if not m:
-        return None
-    raw = m.group(1)
-    try:
-        when = datetime.datetime.fromisoformat(raw.replace("Z", "+00:00"))
-    except ValueError:
-        return raw[:10] if DATE.fullmatch(raw[:10]) else None
-    return when.astimezone(KST).date().isoformat() if when.tzinfo else when.date().isoformat()
-
-
 def tiktok_date(vid):
     """TikTok ids start with the upload time in seconds (top 32 bits)."""
     return datetime.datetime.fromtimestamp(int(vid) >> 32, KST).date().isoformat()
@@ -465,14 +446,9 @@ def resolve_date(item):
     name = SOURCE_NAMES[item["source"]]
     if item["source"] == "tiktok":
         return tiktok_date(item["id"])
-    if item["source"] == "youtube":
-        date = youtube_date(item["id"])
-        if date:
-            return date
-        raise InputError(f"유튜브에서 업로드 날짜를 읽지 못했습니다: `{item['id']}` (링크 뒤에 `| 날짜` 를 붙여 주세요)",
-                         f"Could not read the upload date from YouTube: `{item['id']}` (add `| date` after the link)")
-    raise InputError(f"{name} 영상은 날짜가 필요합니다: `{item['id']}` (링크 뒤에 `| 날짜`, 예: 2026-11-04)",
-                     f"{name} videos need a date: `{item['id']}` (add `| date` after the link, e.g. 2026-11-04)")
+    # YouTube's publish date cannot be read from GitHub's servers without an API key, so it is typed
+    raise InputError(f"{name} 영상은 날짜가 필요합니다 (한국 시간): `{item['id']}` (링크 뒤에 `| 날짜`, 예: 2026-11-04)",
+                     f"{name} videos need a date (Korea time): `{item['id']}` (add `| date` after the link, e.g. 2026-11-04)")
 
 
 def new_video(item, *, playlist_channel, member, vertical):

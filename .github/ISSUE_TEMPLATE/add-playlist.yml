@@ -46,15 +46,15 @@ body:
     id: links
     attributes:
       label: "링크 / Links"
-      description: "한 줄에 영상 하나: `링크 | 제목 | 날짜 | 썸네일`. 유튜브는 링크만 (제목·날짜 자동). 틱톡은 `링크 | 제목` (날짜 자동). 티빙은 `링크 | 제목 | 날짜` (썸네일 자동). 웨이브·넷플릭스·팬즈는 `링크 | 제목 | 날짜 | 썸네일` (썸네일은 이미지 주소나 유튜브 링크).  \nOne video per line: `link | title | date | thumbnail`. YouTube: link only (title and date automatic). TikTok: `link | title` (date automatic). TVING: `link | title | date` (thumbnail automatic). Wavve, Netflix, FANS: `link | title | date | thumbnail` (an image URL or a YouTube link)."
-      placeholder: "https://youtu.be/abc123def45\nhttps://www.wavve.com/player/vod?contentid=… | 988회 · 특집 | 2026-11-04 | https://image.wavve.com/….jpg"
+      description: "한 줄에 영상 하나: `링크 | 제목 | 날짜 | 썸네일`. 유튜브는 `링크 | 날짜` (제목 자동, 날짜는 한국 시간 업로드 날짜). 틱톡은 `링크 | 제목` (날짜 자동). 티빙은 `링크 | 제목 | 날짜` (썸네일 자동). 웨이브·넷플릭스·팬즈는 `링크 | 제목 | 날짜 | 썸네일` (썸네일은 이미지 주소나 유튜브 링크).  \nOne video per line: `link | title | date | thumbnail`. YouTube: `link | date` (title automatic; the upload date in Korea time). TikTok: `link | title` (date automatic). TVING: `link | title | date` (thumbnail automatic). Wavve, Netflix, FANS: `link | title | date | thumbnail` (an image URL or a YouTube link)."
+      placeholder: "https://youtu.be/abc123def45 | 2026-11-05\nhttps://www.wavve.com/player/vod?contentid=… | 988회 · 특집 | 2026-11-04 | https://image.wavve.com/….jpg"
     validations:
       required: true
   - type: input
     id: date
     attributes:
       label: "날짜 (선택) / Date (optional)"
-      description: "모든 링크에 같은 날짜를 쓸 때만. 비워 두면 유튜브·틱톡은 자동, 다른 출처는 링크마다 날짜가 필요합니다.  \nOnly to give every link the same date. Blank = automatic for YouTube and TikTok; other sources need a date on each line."
+      description: "날짜가 없는 링크 모두에 쓰입니다 (한국 시간, 예: 2026-11-05). 비워 두면 링크마다 날짜가 필요합니다 (틱톡은 자동).  \nUsed for every link without its own date (Korea time, e.g. 2026-11-05). Blank = each line needs a date (TikTok is automatic)."
   - type: dropdown
     id: member
     attributes:

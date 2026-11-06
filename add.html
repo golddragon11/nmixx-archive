@@ -172,22 +172,22 @@ const TEXT = {
     suggest: (n) => `+ 함께 추가: ${n}`,
     links: "링크", firstLinks: "첫 영상 링크",
     linksHint: "한 줄에 영상 하나: <code>링크 | 제목 | 날짜 | 썸네일</code> — 출처마다 필요한 칸만 쓰면 됩니다 (아래 안내).",
-    linksPh: "https://youtu.be/abc123def45\nhttps://www.tiktok.com/@nmixx_official/video/7704213048080207122 | 𝑵𝑬𝑶𝑵 🐶〃🐱\nhttps://www.wavve.com/player/vod?contentid=… | 988회 · 특집 | 2026-11-04 | https://image.wavve.com/….jpg",
+    linksPh: "https://youtu.be/abc123def45 | 2026-11-05\nhttps://www.tiktok.com/@nmixx_official/video/7704213048080207122 | 𝑵𝑬𝑶𝑵 🐶〃🐱\nhttps://www.wavve.com/player/vod?contentid=… | 988회 · 특집 | 2026-11-04 | https://image.wavve.com/….jpg",
     formatTitle: "출처별 입력 방법",
     formatTable: "<table><tr><th>출처</th><th>쓰는 법</th><th>자동</th></tr>"
-      + "<tr><td>유튜브</td><td><code>링크</code></td><td>제목, 날짜, 채널</td></tr>"
+      + "<tr><td>유튜브</td><td><code>링크 | 날짜</code></td><td>제목, 채널</td></tr>"
       + "<tr><td>틱톡</td><td><code>링크 | 제목</code></td><td>날짜</td></tr>"
       + "<tr><td>티빙</td><td><code>링크 | 제목 | 날짜</code></td><td>썸네일</td></tr>"
       + "<tr><td>웨이브, 넷플릭스</td><td><code>링크 | 제목 | 날짜 | 썸네일</code></td><td>—</td></tr>"
       + "<tr><td>팬즈</td><td><code>링크 | 제목 | 날짜 | 썸네일</code> + 멤버</td><td>—</td></tr></table>"
-      + "<p class='hint'>날짜는 2026-11-04 형식. 썸네일은 이미지 주소 (웨이브·팬즈는 이미지를 우클릭해 '이미지 주소 복사') 나 유튜브 링크 (그 영상의 썸네일). 순서가 바뀌어도 알아서 구분합니다.</p>",
+      + "<p class='hint'>날짜는 2026-11-04 형식, 한국 시간 기준 (유튜브는 업로드 날짜). 썸네일은 이미지 주소 (웨이브·팬즈는 이미지를 우클릭해 '이미지 주소 복사') 나 유튜브 링크 (그 영상의 썸네일). 순서가 바뀌어도 알아서 구분합니다.</p>",
     member: "멤버", memberHint: "솔로 시리즈와 팬즈 라이브는 멤버가 필요합니다. 여러 멤버 영상은 유닛 시리즈에 넣으세요.",
     fansMemberHint: "팬즈 라이브는 멤버가 필요합니다", fansTierHint: "멤버십 기수 (예: NSWER 5th)", yearHint: "연도 (예: 2027)",
     urlName: "주소 이름", urlHint: (p) => `선택 — 영문으로 쓰면 주소가 ${p}이름 이 됩니다. 비우면 자동`,
     channelTv: "필수 — 방송사 (예: KBS 2TV, MBC, tvN)", channelYt: "비우면 첫 영상의 유튜브 채널", channelAuto: "비우면 NMIXX",
     descHint: "선택 — 보통 라이브 재생목록에만. 쓴 그대로 모든 언어에서 보입니다",
     needChannel: "방송사를 채널 칸에 써 주세요", needYear: "연도를 4자리로 써 주세요 (예: 2027)",
-    date: "모든 링크에 같은 날짜", dateHint: "선택 — 비우면 유튜브·틱톡은 자동, 다른 출처는 링크마다 날짜",
+    date: "모든 링크에 같은 날짜", dateHint: "선택 — 한국 시간. 비우면 링크마다 날짜가 필요합니다 (틱톡은 자동)",
     channel: "채널", autoHint: "비우면 자동",
     vertical: "세로 영상 (쇼츠)", kind: "종류", playlistTitle: "재생목록 제목", desc: "설명", optional: "선택",
     preview: "이슈 내용 미리 보기", copy: "본문 복사", create: "GitHub 이슈 만들기", createLong: "복사하고 이슈 열기",
@@ -201,7 +201,7 @@ const TEXT = {
     wrongSource: (s) => `${s} 영상은 이 재생목록에 넣을 수 없음`, twice: "같은 영상이 두 번",
     inPlaylist: (n) => `이미 '${n}'에 있음`,
     existing: "이미 있는 영상 — 저장된 제목·날짜를 그대로 씀", needTitle: "제목 필요 ( | 제목 )",
-    needDate: "날짜 필요 ( | 2026-11-04 )", autoDate: "날짜는 자동", ytAuto: "제목·날짜는 유튜브에서 자동",
+    needDate: "날짜 필요, 한국 시간 ( | 2026-11-04 )", autoDate: "날짜는 자동", ytAuto: "제목은 유튜브에서 자동",
     needThumb: "썸네일 필요 (이미지나 유튜브 링크)", tvingThumb: "썸네일은 자동으로 가져옴",
     shortTiktok: "짧은 틱톡 링크 — 봇이 확인",
   },
@@ -213,22 +213,22 @@ const TEXT = {
     suggest: (n) => `+ Also add to: ${n}`,
     links: "Links", firstLinks: "First video links",
     linksHint: "One video per line: <code>link | title | date | thumbnail</code> — only the parts each source needs (see below).",
-    linksPh: "https://youtu.be/abc123def45\nhttps://www.tiktok.com/@nmixx_official/video/7704213048080207122 | 𝑵𝑬𝑶𝑵 🐶〃🐱\nhttps://www.wavve.com/player/vod?contentid=… | Ep. 988 | 2026-11-04 | https://image.wavve.com/….jpg",
+    linksPh: "https://youtu.be/abc123def45 | 2026-11-05\nhttps://www.tiktok.com/@nmixx_official/video/7704213048080207122 | 𝑵𝑬𝑶𝑵 🐶〃🐱\nhttps://www.wavve.com/player/vod?contentid=… | Ep. 988 | 2026-11-04 | https://image.wavve.com/….jpg",
     formatTitle: "How to write each source",
     formatTable: "<table><tr><th>Source</th><th>Write</th><th>Automatic</th></tr>"
-      + "<tr><td>YouTube</td><td><code>link</code></td><td>title, date, channel</td></tr>"
+      + "<tr><td>YouTube</td><td><code>link | date</code></td><td>title, channel</td></tr>"
       + "<tr><td>TikTok</td><td><code>link | title</code></td><td>date</td></tr>"
       + "<tr><td>TVING</td><td><code>link | title | date</code></td><td>thumbnail</td></tr>"
       + "<tr><td>Wavve, Netflix</td><td><code>link | title | date | thumbnail</code></td><td>—</td></tr>"
       + "<tr><td>FANS</td><td><code>link | title | date | thumbnail</code> + member</td><td>—</td></tr></table>"
-      + "<p class='hint'>Dates look like 2026-11-04. A thumbnail is an image URL (on Wavve or FANS, right-click the image → “Copy image address”) or a YouTube link (its thumbnail is used). Parts are recognised even if the order differs.</p>",
+      + "<p class='hint'>Dates look like 2026-11-04, in Korea time (for YouTube, the upload date). A thumbnail is an image URL (on Wavve or FANS, right-click the image → “Copy image address”) or a YouTube link (its thumbnail is used). Parts are recognised even if the order differs.</p>",
     member: "Member", memberHint: "The solo series and FANS lives need a member. Videos with several members go into a unit series.",
     fansMemberHint: "FANS lives need a member", fansTierHint: "The membership tier (e.g. NSWER 5th)", yearHint: "The year (e.g. 2027)",
     urlName: "URL name", urlHint: (p) => `Optional — in English, the link becomes ${p}name. Blank = generated`,
     channelTv: "Required — the broadcaster (e.g. KBS 2TV, MBC, tvN)", channelYt: "Blank = the first video's YouTube channel", channelAuto: "Blank = NMIXX",
     descHint: "Optional — usually only for live playlists. Shown as written in every language",
     needChannel: "Type the broadcaster in Channel", needYear: "Write the year as 4 digits (e.g. 2027)",
-    date: "Same date for all links", dateHint: "Optional — blank = automatic for YouTube and TikTok; other sources need a date per line",
+    date: "Same date for all links", dateHint: "Optional — Korea time. Blank = each line needs its own date (TikTok is automatic)",
     channel: "Channel", autoHint: "Blank = automatic",
     vertical: "Vertical video (Shorts)", kind: "Kind", playlistTitle: "Playlist title", desc: "Description", optional: "Optional",
     preview: "Preview issue", copy: "Copy body", create: "Create GitHub issue", createLong: "Copy & open issue",
@@ -242,7 +242,7 @@ const TEXT = {
     wrongSource: (s) => `${s} videos cannot go into this playlist`, twice: "Listed twice",
     inPlaylist: (n) => `Already in '${n}'`,
     existing: "Existing video — its stored title and date are reused", needTitle: "Title required ( | title )",
-    needDate: "Date required ( | 2026-11-04 )", autoDate: "Date automatic", ytAuto: "Title and date from YouTube",
+    needDate: "Date required, Korea time ( | 2026-11-04 )", autoDate: "Date automatic", ytAuto: "Title from YouTube",
     needThumb: "Thumbnail required (image or YouTube link)", tvingThumb: "Thumbnail fetched automatically",
     shortTiktok: "Short TikTok link — the bot resolves it",
   },

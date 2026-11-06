@@ -111,8 +111,9 @@ required fields per source (`thumb` for Wavve/Netflix, `url` for non-YouTube).
 
 - **Issue forms** (Korean + English): one "add video" form for every source — each
   link line is `link | title | date | thumbnail` (parts recognised by shape). Dates are
-  automatic for YouTube (publish date in Korea time, read from the watch page) and TikTok
-  (upload time encoded in the id); other sources need one. The playlist is a text field
+  automatic only for TikTok (upload time encoded in the id); every other source, YouTube
+  included, needs one in Korea time (YouTube's watch page does not show the publish date to
+  GitHub's servers; a YouTube Data API key would be the way to automate it). The playlist is a text field
   (id, or words from the title/era; ambiguous input gets a list of candidates)
   because GitHub dropdowns cannot be searched. `add.html` is the main entry point: it
   searches all playlists (including Shorts and TikTok series), takes every field, checks each link as you type (using the
