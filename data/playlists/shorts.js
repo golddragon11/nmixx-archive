@@ -767,6 +767,14 @@ PLAYLISTS.push(
         date: "2026-11-04",
         v: 1,
       },
+      {
+        id: "ufuhu3hhOtA",
+        title:
+          "𝗣𝗮𝘄 𝗣𝗮𝘄 x𐦯 🐾 #NMIXX #SULLYOON #JIWOO #KYUJIN #긴소원_BirthdayWish",
+        date: "2026-11-05",
+        ch: "NMIXX",
+        v: 1,
+      },
     ],
   },
   {
