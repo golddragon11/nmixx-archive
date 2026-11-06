@@ -2,9 +2,10 @@
 
 Static site published to GitHub Pages by a GitHub Actions build.
 
-- `index.html` — page layout, styles and app code
+- `index.html` — page layout and app code
+- `site.css` — the site's styles, shared by `index.html` and `add.html`
 - `data/` — albums, playlists and videos as JSON (format: [docs/DATA_REDESIGN.md](docs/DATA_REDESIGN.md))
-- `add.html` — fill-in page for adding videos or playlists; opens a ready-to-create GitHub issue
+- `add.html` — fill-in page for adding videos or playlists; opens a ready-to-create GitHub issue (uses the site's `site.css`)
 - `scripts/` — build, validation, issue-form and upstream-import tools
 
 ## 영상 추가하기 / Adding videos
@@ -54,12 +55,24 @@ No code editing needed — everything happens on github.com, also from a phone.
 
 ## 새 재생목록 만들기 / New playlists
 
-`add.html` 의 **새 재생목록** 탭, 또는 **Issues → New issue → 새 재생목록 추가 / New playlist**: 종류 (웹예능 출연, 방송, NMIXX Original,
-라이브, 투어·콘서트), 제목, 첫 영상 링크를 넣습니다. Pick a kind (web show, TV, NMIXX Original, live,
-tour), a title and the first links. 앨범 활동별 재생목록 (음악방송·MV·쇼츠·MIXX 스페셜) 은 이 양식으로
-만들 수 없습니다. Album-era playlists (music shows, MV, Shorts, specials) cannot be created this way.
-새 팬즈 멤버십 기수는 종류 '팬즈 라이브', 제목에 기수 (예: `NSWER 5th`), 멤버를 고르면 됩니다.
-A new FANS membership tier: kind "FANS live", the tier as the title (e.g. `NSWER 5th`), and a member.
+`add.html` 의 **새 재생목록** 탭 (또는 Issues → New issue → 새 재생목록 추가). Use the **New playlist** tab of `add.html`.
+
+| 종류 / Kind | 제목 / Title | 채널 / Channel | 주소 / Id |
+|---|---|---|---|
+| 웹예능 출연 / Web show appearances | 이름 / name | 비우면 첫 영상의 유튜브 채널 / blank = first video's YouTube channel | 영상 1개면 `g1-<영상 id>`, 아니면 `g-<이름>-<해시>` / `g1-<video id>` for one video, else `g-<name>-<hash>` |
+| 방송 / TV | 이름 / name | **필수: 방송사** (KBS 2TV, MBC…) / **required: the broadcaster** | `tv-<주소 이름>` 또는 자동 / `tv-<URL name>` or generated |
+| NMIXX Original | 이름 / name | NMIXX | `orig-<이름>-<해시>` |
+| 라이브 / Live | 이름 / name | NMIXX | `<주소 이름>` 또는 자동 / `<URL name>` or generated |
+| 라이브 다이어리 / Live Diary | **연도** / **year** (2027) | NMIXX | `live-diary-2027` (제목·설명 자동 / title and description automatic) |
+| 투어·콘서트 / Tours & concerts | 이름 / name | NMIXX | `tour-<주소 이름>` 또는 자동 / or generated |
+| 팬즈 라이브 / FANS lives | **멤버십 기수** / **tier** (NSWER 5th) | — | `fans-nswer-5th` (+ 멤버 필수 / member required) |
+
+**주소 이름 (선택)** 은 영문으로 쓰면 링크가 읽기 쉬워집니다 (예: `salon-de-doll` → `tv-salon-de-doll`).
+**URL name (optional)**: an English name makes a readable link. 자동 주소는 원본 사이트와 같은 규칙 (이름 + 이름의 MD5 앞 6자리). Generated ids follow upstream's rule (name slug + first 6 characters of the name's MD5).
+**설명** 은 보통 라이브 재생목록에만 씁니다. **Description** is usually only for live playlists.
+종류 이름은 사이트(index.html)의 번역을 그대로 씁니다. Kind names are read from the site's own translations.
+앨범 활동별 재생목록 (음악방송·MV·쇼츠·MIXX 스페셜) 과 쇼츠 시리즈는 이 양식으로 만들 수 없습니다.
+Album-era playlists (music shows, MVs, Shorts, specials) and Shorts series cannot be created this way.
 
 저장소 주인과 협업자가 올린 이슈만 처리됩니다. Only issues from the owner and collaborators are processed.
 
@@ -103,4 +116,5 @@ git diff --stat data/                                                       # re
 
 The importer replaces `data/` with upstream's data (renaming era playlist ids to album names) and
 refuses to write anything unless converting back reproduces upstream exactly. Changes to
-upstream's page code have to be copied into `index.html` by hand.
+upstream's page code have to be copied into `index.html` by hand, and changes to its inline
+`<style>` into `site.css`.

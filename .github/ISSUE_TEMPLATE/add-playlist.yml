@@ -11,31 +11,37 @@ body:
     attributes:
       label: "종류 / Kind"
       options:
-        - "웹예능 출연 · Web show (guest)"
+        - "웹예능 출연 · Web show appearances (guest)"
         - "방송 · TV (tv)"
-        - "NMIXX Original · Original (original)"
+        - "NMIXX Original (original)"
         - "라이브 · Live (live)"
-        - "투어·콘서트 · Tour (tour)"
-        - "팬즈 라이브 · FANS live (fans)"
+        - "라이브 다이어리 · Live Diary (diary)"
+        - "투어·콘서트 · Tours & concerts (tour)"
+        - "팬즈 라이브 · FANS lives (fans)"
     validations:
       required: true
   - type: input
     id: title
     attributes:
       label: "제목 / Title"
-      description: "사이트에 보일 재생목록 이름. 팬즈 라이브는 멤버십 기수 (예: NSWER 5th)  \nPlaylist name shown on the site. For FANS lives, the membership tier (e.g. NSWER 5th)"
+      description: "사이트에 보일 재생목록 이름. 팬즈 라이브는 멤버십 기수 (예: NSWER 5th), 라이브 다이어리는 연도 (예: 2027)  \nPlaylist name shown on the site. FANS lives: the membership tier (e.g. NSWER 5th); live diary: the year (e.g. 2027)"
     validations:
       required: true
+  - type: input
+    id: url_name
+    attributes:
+      label: "주소 이름 (선택) / URL name (optional)"
+      description: "영문 주소 이름 (예: salon-de-doll → tv-salon-de-doll). 비우면 자동으로 만듭니다.  \nEnglish name for the link (e.g. salon-de-doll → tv-salon-de-doll). Blank = generated."
   - type: input
     id: channel
     attributes:
       label: "채널 (선택) / Channel (optional)"
-      description: "비워 두면 라이브·NMIXX Original·투어는 NMIXX, 웹예능·방송은 첫 영상의 유튜브 채널.  \nBlank = NMIXX for live, original and tour; the first video's YouTube channel otherwise."
+      description: "방송은 방송사 필수 (예: KBS 2TV). 비우면 라이브·NMIXX Original·투어는 NMIXX, 웹예능은 첫 영상의 유튜브 채널.  \nTV: the broadcaster, required (e.g. KBS 2TV). Blank = NMIXX for live, original and tour; the first video's YouTube channel for web shows."
   - type: textarea
     id: desc
     attributes:
       label: "설명 (선택) / Description (optional)"
-      description: "재생목록 소개 문구  \nShort description of the playlist"
+      description: "보통 라이브 재생목록에만 씁니다. 한국어로 쓰면 모든 언어에서 한국어로 보입니다.  \nUsually only for live playlists. It is shown as written in every language."
   - type: textarea
     id: links
     attributes:

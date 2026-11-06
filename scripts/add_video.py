@@ -29,19 +29,27 @@ KST = datetime.timezone(datetime.timedelta(hours=9))
 TEMPLATES = nd.ROOT / ".github" / "ISSUE_TEMPLATE"
 UA = {"User-Agent": "Mozilla/5.0 (compatible; nmixx-archive)"}
 
-KIND_LABELS = {
-    "live": ("라이브", "Live"), "tv": ("방송", "TV"), "guest": ("웹예능 출연", "Web show"),
-    "mv": ("MV·퍼포먼스", "MV"), "nmixxetc": ("MIXX 스페셜", "Special"),
-    "original": ("NMIXX Original", "Original"), "shorts": ("쇼츠", "Shorts"),
-    "stage": ("음악방송", "Music show"), "stagex": ("무대 비하인드", "Stage behind"),
-    "tour": ("투어·콘서트", "Tour"), "univx": ("대학 축제 비하인드", "Festival behind"),
-    nd.SERIES: ("쇼츠 시리즈", "Shorts series"), nd.FANS: ("팬즈 라이브", "FANS live"),
-}
+DIARY = "diary"  # new-playlist pseudo-kind: a yearly live diary (kind "live" with diary: true)
+
+
+def _site_labels():
+    (ko, ko_diary), (en, en_diary) = nd.site_text("ko"), nd.site_text("en")
+    key = {nd.SERIES: "kind_shortsx", "univx": "stab_univ"}
+    kinds = ("live", "tv", "guest", "mv", "nmixxetc", "original", "shorts", "stage", "stagex", "tour",
+             "univx", nd.SERIES, nd.FANS)
+    labels = {k: (ko[key.get(k, "kind_" + k)], en[key.get(k, "kind_" + k)]) for k in kinds}
+    labels[DIARY] = (ko_diary, en_diary)
+    return labels
+
+
+KIND_LABELS = _site_labels()  # exactly what the site shows, read from index.html
 STANDALONE = "tiktok-standalone"
-NEW_PLAYLIST_KINDS = {  # kind -> (id prefix, default channel; None = first video's)
-    "guest": ("g", None), "tv": ("tv", None), "original": ("orig", "NMIXX"),
-    "live": ("live", "NMIXX"), "tour": ("tour", "NMIXX"), nd.FANS: (None, None),
+# kind -> (id prefix, default channel: None = the first video's YouTube channel, "" = must be typed)
+NEW_PLAYLIST_KINDS = {
+    "guest": ("g", None), "tv": ("tv", ""), "original": ("orig", "NMIXX"),
+    "live": ("live", "NMIXX"), DIARY: ("live-diary", "NMIXX"), "tour": ("tour", "NMIXX"), nd.FANS: (None, None),
 }
+URL_NAME_PREFIX = {"guest": "g", "tv": "tv", "original": "orig", "live": "", "tour": "tour"}  # upstream style
 IMPLIED_CHANNEL = {"shorts": "NMIXX", "mv": "NMIXX", "nmixxetc": "NMIXX"}
 SOURCE_NAMES = {"youtube": "YouTube", "tiktok": "TikTok", "wavve": "Wavve", "tving": "TVING",
                 "netflix": "Netflix", "fans": "FANS"}
@@ -62,6 +70,7 @@ F_OPTIONS = bi("옵션", "Options")
 F_KIND = bi("종류", "Kind")
 F_NEW_TITLE = bi("제목", "Title")
 F_DESC = bi("설명 (선택)", "Description (optional)")
+F_URL_NAME = bi("주소 이름 (선택)", "URL name (optional)")
 VERTICAL = bi("세로 영상 (쇼츠)", "Vertical video (Shorts)")
 NONE_OPTION = bi("없음", "None")
 AUTO_OPTION = bi("자동 (날짜 기준)", "Automatic (by date)")
@@ -83,10 +92,14 @@ class InputError(Exception):
 
 # ---------- forms ----------
 
+def both(ko, en):
+    return ko if ko == en else f"{ko} · {en}"
+
+
 def option_label(p):
-    ko, en = KIND_LABELS.get(p["kind"], (p["kind"], p["kind"]))
+    ko, en = KIND_LABELS.get(DIARY if p.get("diary") else p["kind"], (p["kind"], p["kind"]))
     era = f" · {p['era']}" if p.get("era") else ""
-    return f"[{ko} · {en}] {p['title']}{era} ({p['id']})"
+    return f"[{both(ko, en)}] {p['title']}{era} ({p['id']})"
 
 
 def targets(playlists):
@@ -103,7 +116,7 @@ def era_options(albums):
 
 
 def kind_options():
-    return [f"{KIND_LABELS[k][0]} · {KIND_LABELS[k][1]} ({k})" for k in NEW_PLAYLIST_KINDS]
+    return [f"{both(*KIND_LABELS[k])} ({k})" for k in NEW_PLAYLIST_KINDS]
 
 
 def allowed_sources(kind):
@@ -129,7 +142,7 @@ def form_spec(data):
                 "v": [index[vid] for vid, v in videos.items() if v["source"] == "tiktok" and "era" in v]})
     split = lambda text: dict(zip(("ko", "en"), text.split(" / ", 1)))
     return {
-        "labels": {"target": F_TARGET, "links": F_LINKS, "date": F_DATE,
+        "labels": {"target": F_TARGET, "links": F_LINKS, "date": F_DATE, "urlName": F_URL_NAME,
                    "channel": F_CHANNEL, "member": F_MEMBER, "era": F_ERA, "options": F_OPTIONS,
                    "kind": F_KIND, "newTitle": F_NEW_TITLE, "desc": F_DESC},
         "vertical": VERTICAL, "noResponse": NO_RESPONSE[0],
@@ -139,7 +152,10 @@ def form_spec(data):
         "eraChoices": [{"value": v, **(split(v) if v == AUTO_OPTION else
                                        {"ko": v, "en": "Pre-debut" if v == nd.PRE_DEBUT else v})}
                        for v in era_options(albums)],
-        "kindChoices": [{"value": v, "ko": KIND_LABELS[k][0], "en": KIND_LABELS[k][1]}
+        "kindChoices": [{"value": v, "kind": k, "ko": KIND_LABELS[k][0], "en": KIND_LABELS[k][1],
+                         "channel": {None: "youtube", "": "required"}.get(NEW_PLAYLIST_KINDS[k][1], "auto"),
+                         "urlName": k in URL_NAME_PREFIX, "desc": k not in (nd.FANS, DIARY),
+                         "title": {nd.FANS: "tier", DIARY: "year"}.get(k, "name")}
                         for k, v in zip(NEW_PLAYLIST_KINDS, kind_options())],
         "kindLabels": {k: {"ko": ko, "en": en} for k, (ko, en) in KIND_LABELS.items()},
         "standaloneTitle": {"ko": "시리즈 없는 틱톡", "en": "TikTok without a series"},
@@ -282,13 +298,20 @@ def sync_form(data=None):
         "이미 있는 재생목록에 넣을 때는 '새 영상 추가'를 쓰세요. 영상이 1개 이상 있어야 사이트에 보입니다.",
         "To add to an existing playlist use 'Add videos'. A playlist needs at least one video to show.")
     playlist += field("dropdown", "kind", F_KIND, required=True, options=kinds)
-    playlist += field("input", "title", F_NEW_TITLE, "사이트에 보일 재생목록 이름. 팬즈 라이브는 멤버십 기수 (예: NSWER 5th)",
-                      "Playlist name shown on the site. For FANS lives, the membership tier (e.g. NSWER 5th)",
+    playlist += field("input", "title", F_NEW_TITLE,
+                      "사이트에 보일 재생목록 이름. 팬즈 라이브는 멤버십 기수 (예: NSWER 5th), 라이브 다이어리는 연도 (예: 2027)",
+                      "Playlist name shown on the site. FANS lives: the membership tier (e.g. NSWER 5th); "
+                      "live diary: the year (e.g. 2027)",
                       required=True)
+    playlist += field("input", "url_name", F_URL_NAME,
+                      "영문 주소 이름 (예: salon-de-doll → tv-salon-de-doll). 비우면 자동으로 만듭니다.",
+                      "English name for the link (e.g. salon-de-doll → tv-salon-de-doll). Blank = generated.")
     playlist += field("input", "channel", F_CHANNEL,
-                      "비워 두면 라이브·NMIXX Original·투어는 NMIXX, 웹예능·방송은 첫 영상의 유튜브 채널.",
-                      "Blank = NMIXX for live, original and tour; the first video's YouTube channel otherwise.")
-    playlist += field("textarea", "desc", F_DESC, "재생목록 소개 문구", "Short description of the playlist")
+                      "방송은 방송사 필수 (예: KBS 2TV). 비우면 라이브·NMIXX Original·투어는 NMIXX, 웹예능은 첫 영상의 유튜브 채널.",
+                      "TV: the broadcaster, required (e.g. KBS 2TV). Blank = NMIXX for live, original and tour; "
+                      "the first video's YouTube channel for web shows.")
+    playlist += field("textarea", "desc", F_DESC, "보통 라이브 재생목록에만 씁니다. 한국어로 쓰면 모든 언어에서 한국어로 보입니다.",
+                      "Usually only for live playlists. It is shown as written in every language.")
     playlist += field("textarea", "links", F_LINKS, LINKS_KO, LINKS_EN, required=True, placeholder=LINKS_EXAMPLE)
     playlist += field("input", "date", F_DATE, DATE_KO, DATE_EN)
     playlist += field("dropdown", "member", F_MEMBER, "팬즈 라이브에만 (필수).", "Only for FANS lives (required).",
@@ -564,13 +587,25 @@ def add_videos(form, data):
     return f"새 영상 {len(added)}개 추가 ({today()})", "\n".join(summary)
 
 
-def make_playlist_id(prefix, title, first_video, taken):
-    slug = re.sub(r"[^a-z0-9]+", "-", title.lower()).strip("-")[:40].strip("-")
-    digest = hashlib.sha1(f"{prefix}|{title}|{first_video}".encode()).hexdigest()[:6]
-    pid = f"{prefix}-{slug}-{digest}" if slug else f"{prefix}-{digest}"
+def slugify(text):
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+
+def make_playlist_id(kind, title, items, url_name, taken):
+    """Upstream's id style: a typed English name (tv-weekly-idol), g1-<video> for single-video
+    guest appearances, otherwise <prefix>-<slug>-<md5 of the title>[:6] (g-chuu-can-do-it-fd32c9)."""
+    prefix = NEW_PLAYLIST_KINDS[kind][0]
+    if url_name:
+        if not slugify(url_name):
+            raise InputError("주소 이름은 영문·숫자로 써 주세요.", "Write the URL name in English letters or digits.")
+        pid = "-".join(filter(None, [URL_NAME_PREFIX[kind], slugify(url_name)]))
+    elif kind == "guest" and len(items) == 1:
+        pid = f"g1-{items[0]['id']}"
+    else:
+        pid = "-".join(filter(None, [prefix, slugify(title), hashlib.md5(title.encode()).hexdigest()[:6]]))
     if pid in taken:
-        raise InputError(f"재생목록 id가 겹칩니다: `{pid}`. 제목을 조금 바꿔 주세요.",
-                         f"Playlist id already exists: `{pid}`. Please change the title slightly.")
+        raise InputError(f"재생목록 id가 겹칩니다: `{pid}`. 주소 이름이나 제목을 바꿔 주세요.",
+                         f"Playlist id already exists: `{pid}`. Change the URL name or the title.")
     return pid
 
 
@@ -586,6 +621,8 @@ def add_playlist(form, data):
         raise InputError("재생목록 제목을 입력해 주세요.", "Please enter a playlist title.")
     if kind == nd.FANS:
         return add_fans_tier(form, data, title)
+    if kind == DIARY:
+        return add_live_diary(form, data, title)
     same = next((p for p in playlists if p["kind"] == kind and p["title"] == title), None)
     if same:
         raise InputError(f"같은 이름의 재생목록이 이미 있습니다: `{same['id']}`. 영상을 넣으려면 '새 영상 추가'를 쓰세요.",
@@ -597,10 +634,16 @@ def add_playlist(form, data):
                              f"{SOURCE_NAMES[item['source']]} videos cannot go into this kind of playlist.")
 
     channel = form.get(F_CHANNEL, "").strip() or default_channel
-    if not channel:
+    if channel == "":
+        raise InputError("방송 재생목록은 방송사를 채널 칸에 써 주세요 (예: KBS 2TV, MBC, tvN).",
+                         "TV playlists need the broadcaster in the channel field (e.g. KBS 2TV, MBC, tvN).")
+    if channel is None:
         first = items[0]
-        channel = youtube_info(first["id"])[1] if first["source"] == "youtube" else SOURCE_NAMES[first["source"]]
-    pid = make_playlist_id(prefix, title, items[0]["id"], {p["id"] for p in playlists})
+        if first["source"] != "youtube":
+            raise InputError("첫 링크가 유튜브가 아니면 채널을 직접 써 주세요.",
+                             "When the first link is not YouTube, please type the channel.")
+        channel = youtube_info(first["id"])[1]
+    pid = make_playlist_id(kind, title, items, form.get(F_URL_NAME, "").strip(), {p["id"] for p in playlists})
     p = {"id": pid, "kind": kind, "title": title, "channel": channel}
     if form.get(F_DESC, "").strip():
         p["desc"] = form[F_DESC].strip()
@@ -617,6 +660,33 @@ def add_playlist(form, data):
     summary += [video_line(i, videos[i]) for i in p["videos"]]
     summary += ["", "사이트가 갱신되면 검색 페이지(add.html)에도 나타납니다. / It appears on the search page (add.html) once the site updates."]
     return f"새 재생목록 추가: {title} (영상 {len(items)}개)", "\n".join(summary)
+
+
+def add_live_diary(form, data, year):
+    """A yearly live diary: live-diary-YYYY; the page translates its title and description."""
+    albums, members, videos, playlists = data
+    if not re.fullmatch(r"\d{4}", year):
+        raise InputError("라이브 다이어리는 제목 칸에 연도만 써 주세요 (예: 2027).",
+                         "For a live diary, put only the year in the title field (e.g. 2027).")
+    pid = f"live-diary-{year}"
+    if any(p["id"] == pid for p in playlists):
+        raise InputError(f"이미 있는 라이브 다이어리입니다: `{pid}`", f"This live diary already exists: `{pid}`")
+    items = parse_links(form.get(F_LINKS, ""), parse_date(form[F_DATE]) if form.get(F_DATE) else None)
+    p = {"id": pid, "kind": "live", "title": f"{KIND_LABELS[DIARY][0]} {year}", "channel": "NMIXX",
+         "desc": f"{year}년에 켠 라이브 모음입니다.", "diary": True, "videos": []}
+    for item in items:
+        if item["source"] not in allowed_sources("live"):
+            raise InputError(f"{SOURCE_NAMES[item['source']]} 영상은 라이브 다이어리에 넣을 수 없습니다.",
+                             f"{SOURCE_NAMES[item['source']]} videos cannot go into a live diary.")
+        if item["id"] not in videos:
+            videos[item["id"]] = new_video(item, playlist_channel="NMIXX", member=None, vertical=False)
+        insert_by_date(p["videos"], item["id"], videos[item["id"]]["date"], videos)
+    last = max((n for n, q in enumerate(playlists) if q.get("diary")), default=len(playlists) - 1)
+    playlists.insert(last + 1, p)
+    summary = [f"✅ 새 라이브 다이어리 **{option_label(p)}** 을 만들고 영상 {len(items)}개를 넣었습니다. / "
+               f"Created live diary with {len(items)} videos.", ""]
+    summary += [video_line(i, videos[i]) for i in p["videos"]]
+    return f"새 라이브 다이어리 추가: {year} (영상 {len(items)}개)", "\n".join(summary)
 
 
 def add_fans_tier(form, data, tier):

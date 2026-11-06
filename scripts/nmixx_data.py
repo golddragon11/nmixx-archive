@@ -17,6 +17,24 @@ PRE_DEBUT = "데뷔 전"
 DROPPED_PLAYLIST_FIELDS = ("featured", "single")
 
 
+def site_text(lang):
+    """Kind labels and the live-diary title from index.html's translations, e.g. site_text("en")."""
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    start = re.search(rf"^          {lang}: \{{$", html, re.M)
+    if not start:
+        raise ValueError(f"no '{lang}' translations in index.html")
+    rest = html[start.end():]
+    end = re.search(r"^          [a-z]+: \{$", rest, re.M)
+    block = rest[:end.start()] if end else rest
+    labels = {}
+    for key, text in re.findall(r'^\s+(kind_\w+|stab_univ): "([^"]*)",?$', block, re.M):
+        labels.setdefault(key, text)
+    diary = re.search(r"diaryTitle: \(e\) =>\s*`(.*?)\$\{e\}`", block)
+    if not diary or not labels:
+        raise ValueError(f"could not read the '{lang}' labels from index.html")
+    return labels, diary.group(1).strip()
+
+
 def fans_id(tier):
     """Same id the page generates for a fan-live playlist: 'NSWER 4th' -> 'fans-nswer-4th'."""
     return "fans-" + re.sub(r"\W+", "-", (tier or "etc").lower())

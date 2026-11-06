@@ -119,7 +119,9 @@ required fields per source (`thumb` for Wavve/Netflix, `url` for non-YouTube).
   searches all targets, takes every field, checks each link as you type (using the
   labels, options and link patterns exported by `add_video.form_spec` into
   `data/add-form.js`), and opens a plain GitHub issue with the finished body.
-  One "new playlist" form. Edits are plain JSON; no Node or Prettier.
+  One "new playlist" form (web show, TV, original, live, live diary, tour, FANS tier); new ids follow
+  upstream's rules (`g1-<video>`, `<prefix>-<slug>-<md5(title)[:6]>`, or a typed English URL name).
+  Kind labels are read from `index.html`'s ko/en translations. Edits are plain JSON; no Node or Prettier.
 - **`scripts/import_legacy.py`**: converts legacy arrays (from upstream's
   `index.html` or the old `data/*.js`) into the new format, renaming upstream's
   era-numbered playlist ids to album-name ids; used for the migration and for
