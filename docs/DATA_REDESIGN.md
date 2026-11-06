@@ -110,8 +110,10 @@ required fields per source (`thumb` for Wavve/Netflix, `url` for non-YouTube).
 - **Issue forms** (Korean + English): one "add video" form for every source — each
   link line may add `| date | title | thumbnail`. The playlist is a text field
   (id, or words from the title/era; ambiguous input gets a list of candidates)
-  because GitHub dropdowns cannot be searched; `add.html` searches all playlists,
-  TikTok series and "TikTok without a series" and opens the form pre-filled.
+  because GitHub dropdowns cannot be searched. `add.html` is the main entry point: it
+  searches all targets, takes every field, checks each link as you type (using the
+  labels, options and link patterns exported by `add_video.form_spec` into
+  `data/add-form.js`), and opens a plain GitHub issue with the finished body.
   One "new playlist" form. Edits are plain JSON; no Node or Prettier.
 - **`scripts/import_legacy.py`**: converts legacy arrays (from upstream's
   `index.html` or the old `data/*.js`) into the new format, renaming upstream's

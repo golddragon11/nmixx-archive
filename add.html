@@ -6,71 +6,343 @@
 <meta name="robots" content="noindex">
 <title>영상 추가 · Add videos</title>
 <style>
-  :root { color-scheme: light dark; --bg: #fff; --fg: #111; --muted: #666; --line: #ddd; --hover: #f2f4f8; --accent: #2b6cff; }
-  @media (prefers-color-scheme: dark) { :root { --bg: #0f1115; --fg: #eee; --muted: #9aa; --line: #2a2f3a; --hover: #1a1f29; --accent: #6b9bff; } }
+  :root {
+    color-scheme: light dark;
+    --bg: #fff; --fg: #15171c; --muted: #646b78; --line: #dde1e8; --soft: #f4f6fa;
+    --accent: #2b6cff; --accent-fg: #fff; --ok: #1a7f45; --warn: #9a6200; --err: #c62f2f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0f1115; --fg: #e9ecf1; --muted: #98a0ad; --line: #2a2f3a; --soft: #181c24;
+            --accent: #6b9bff; --accent-fg: #0f1115; --ok: #5cc98a; --warn: #e2b04a; --err: #ff7a7a; }
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
-  main { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 15px/1.5 system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 200px; }
   h1 { font-size: 1.4rem; margin: 0 0 4px; }
-  p { margin: 4px 0; color: var(--muted); }
-  .bar { position: sticky; top: 0; background: var(--bg); padding: 12px 0; }
-  input { width: 100%; padding: 12px 14px; font: inherit; border: 1px solid var(--line); border-radius: 10px; background: transparent; color: inherit; }
-  input:focus { outline: 2px solid var(--accent); border-color: transparent; }
-  ul { list-style: none; margin: 0; padding: 0; }
-  li a { display: block; padding: 10px 12px; border-bottom: 1px solid var(--line); color: inherit; text-decoration: none; }
-  li a:hover, li a:focus { background: var(--hover); }
+  .sub { margin: 0 0 16px; color: var(--muted); }
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 20px; }
+  .tabs button { font: inherit; padding: 10px 14px; border: 0; background: none; color: var(--muted);
+                 border-bottom: 2px solid transparent; cursor: pointer; }
+  .tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); font-weight: 600; }
+  fieldset { border: 0; margin: 0 0 18px; padding: 0; }
+  label, legend { display: block; font-weight: 600; margin: 0 0 6px; }
+  .hint { display: block; font-weight: 400; font-size: 13px; color: var(--muted); }
+  input[type=text], input[type=search], textarea, select {
+    width: 100%; padding: 10px 12px; font: inherit; color: inherit; background: transparent;
+    border: 1px solid var(--line); border-radius: 10px; }
+  textarea { min-height: 120px; resize: vertical; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; }
+  input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  select { background: var(--bg); }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 16px; }
+  .results { list-style: none; margin: 6px 0 0; padding: 0; max-height: 320px; overflow: auto;
+             border: 1px solid var(--line); border-radius: 10px; }
+  .results:empty { display: none; }
+  .results button { display: block; width: 100%; text-align: left; font: inherit; color: inherit;
+                    background: none; border: 0; border-bottom: 1px solid var(--line); padding: 9px 12px; cursor: pointer; }
+  .results li:last-child button { border-bottom: 0; }
+  .results button:hover, .results button:focus { background: var(--soft); outline: none; }
   .id { display: block; font-size: 12px; color: var(--muted); }
-  .links { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 12px 0 0; }
-  .links a { color: var(--accent); }
-  #count { font-size: 13px; }
+  .picked { display: flex; justify-content: space-between; gap: 12px; align-items: center;
+            padding: 10px 12px; background: var(--soft); border-radius: 10px; }
+  .link-btn { font: inherit; color: var(--accent); background: none; border: 0; cursor: pointer; padding: 0; white-space: nowrap; }
+  .checks { list-style: none; margin: 8px 0 0; padding: 0; font-size: 13px; }
+  .checks li { padding: 6px 10px; border-left: 3px solid var(--line); margin-bottom: 4px; background: var(--soft);
+               border-radius: 0 6px 6px 0; overflow-wrap: anywhere; }
+  .checks .ok { border-left-color: var(--ok); }
+  .checks .warn { border-left-color: var(--warn); }
+  .checks .err { border-left-color: var(--err); }
+  .checks b { font-weight: 600; }
+  .checks .msg { display: block; color: var(--muted); }
+  .checks .err .msg { color: var(--err); }
+  .checks .warn .msg { color: var(--warn); }
+  .check { display: flex; gap: 8px; align-items: center; font-weight: 400; }
+  .bar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--bg); border-top: 1px solid var(--line);
+         padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
+  .bar-inner { max-width: 760px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+  .bar .status { flex: 1 1 240px; font-size: 13px; color: var(--muted); }
+  .bar .status.err { color: var(--err); }
+  .primary { font: inherit; font-weight: 600; padding: 10px 16px; border-radius: 10px; border: 0;
+             background: var(--accent); color: var(--accent-fg); cursor: pointer; }
+  .primary:disabled { opacity: .45; cursor: not-allowed; }
+  .secondary { font: inherit; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line);
+               background: none; color: inherit; cursor: pointer; }
+  details { margin-top: 8px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; background: var(--soft);
+        padding: 10px; border-radius: 8px; max-height: 280px; overflow: auto; }
 </style>
 </head>
 <body>
 <main>
   <h1>영상 추가 · Add videos</h1>
-  <p>재생목록을 검색해서 고르면 GitHub의 '새 영상 추가' 양식이 열립니다.</p>
-  <p>Search for a playlist and pick it to open the GitHub "Add videos" form.</p>
-  <div class="links"><a id="newPlaylist" href="#">새 재생목록 만들기 · New playlist</a></div>
-  <div class="bar">
-    <input id="q" type="search" placeholder="예: 월간, radio star, shorts strange muse" autocomplete="off" autofocus>
-    <p id="count"></p>
-  </div>
-  <ul id="list"></ul>
-</main>
-<script src="data/targets.js"></script>
-<script>
-  // Works on any <owner>.github.io/<repo>/ site; ?repo=owner/name overrides (e.g. for local preview).
-  const repo = new URLSearchParams(location.search).get("repo")
-    || (location.hostname.endsWith(".github.io")
-        ? location.hostname.split(".")[0] + "/" + location.pathname.split("/")[1] : "");
-  const issueUrl = (template, params) =>
-    `https://github.com/${repo}/issues/new?` + new URLSearchParams({ template, ...params });
-  const norm = (s) => s.normalize("NFKC").toLowerCase().replace(/[\s\p{P}\p{S}_]+/gu, "");
-  const list = document.getElementById("list"), q = document.getElementById("q"), count = document.getElementById("count");
-  document.getElementById("newPlaylist").href = repo ? issueUrl("add-playlist.yml", {}) : "#";
+  <p class="sub">여기서 모두 입력하고 버튼을 누르면 GitHub 이슈가 채워진 채로 열립니다. 거기서 <b>Create</b> 만 누르세요.<br>
+    Fill in everything here; the button opens a GitHub issue that is already filled in — just press <b>Create</b>.</p>
 
-  function render() {
-    const words = q.value.split(/\s+/).map(norm).filter(Boolean);
-    const hits = TARGETS.filter((t) => words.every((w) => norm(t.label).includes(w)));
-    count.textContent = `${hits.length}개 · ${hits.length} playlists` + (hits.length > 100 ? " (처음 100개 · first 100)" : "");
-    list.replaceChildren(...hits.slice(0, 100).map((t) => {
-      const a = document.createElement("a");
-      a.href = repo ? issueUrl("add-video.yml", { playlist: t.label }) : "#";
-      a.target = "_blank";
-      a.rel = "noopener";
-      a.textContent = t.label.replace(/ \([^()]+\)$/, "");
-      const id = document.createElement("span");
-      id.className = "id";
-      id.textContent = t.id;
-      a.append(id);
-      const li = document.createElement("li");
-      li.append(a);
-      return li;
-    }));
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tab-video" aria-selected="true">영상 추가 · Add videos</button>
+    <button role="tab" id="tab-playlist" aria-selected="false">새 재생목록 · New playlist</button>
+  </div>
+
+  <section id="pane-video">
+    <fieldset>
+      <legend>재생목록 · Playlist</legend>
+      <div id="pickedBox" hidden class="picked">
+        <span><span id="pickedLabel"></span><span class="id" id="pickedId"></span></span>
+        <button class="link-btn" id="unpick">바꾸기 · Change</button>
+      </div>
+      <div id="searchBox">
+        <input id="q" type="search" placeholder="검색 · Search: 월간, radio star, shorts strange muse" autocomplete="off">
+        <ul class="results" id="results"></ul>
+      </div>
+    </fieldset>
+    <fieldset>
+      <label for="v-links">링크 · Links
+        <span class="hint">한 줄에 하나. 링크 뒤 <code>|</code> 로 날짜·제목·썸네일. One per line; add <code>|</code> date, title, thumbnail after a link.</span></label>
+      <textarea id="v-links" placeholder="https://youtu.be/abc123def45&#10;https://www.wavve.com/player/vod?contentid=… | 2026-11-04 | 988회 · 특집 | https://image.wavve.com/….jpg"></textarea>
+      <ul class="checks" id="v-checks"></ul>
+    </fieldset>
+    <div class="row">
+      <fieldset><label for="v-date">날짜 · Date <span class="hint">비우면 오늘 (한국) · blank = today (Korea)</span></label>
+        <input id="v-date" type="text" placeholder="2026-11-05"></fieldset>
+      <fieldset><label for="v-title">제목 · Title <span class="hint">영상 1개일 때만 · one video only</span></label>
+        <input id="v-title" type="text"></fieldset>
+      <fieldset><label for="v-channel">채널 · Channel <span class="hint">비우면 유튜브 채널 · blank = YouTube's</span></label>
+        <input id="v-channel" type="text"></fieldset>
+      <fieldset><label for="v-member">멤버 · Member</label><select id="v-member"></select></fieldset>
+      <fieldset id="eraBox" hidden><label for="v-era">활동 시기 · Era <span class="hint">발매 전 티저는 다음 앨범 · teasers: upcoming album</span></label>
+        <select id="v-era"></select></fieldset>
+    </div>
+    <label class="check"><input id="v-vertical" type="checkbox"> <span id="verticalLabel"></span></label>
+  </section>
+
+  <section id="pane-playlist" hidden>
+    <div class="row">
+      <fieldset><label for="p-kind">종류 · Kind</label><select id="p-kind"></select></fieldset>
+      <fieldset><label for="p-title">제목 · Title</label><input id="p-title" type="text"></fieldset>
+      <fieldset><label for="p-channel">채널 · Channel <span class="hint">비우면 자동 · blank = automatic</span></label>
+        <input id="p-channel" type="text"></fieldset>
+      <fieldset><label for="p-date">날짜 · Date <span class="hint">비우면 오늘 · blank = today</span></label>
+        <input id="p-date" type="text" placeholder="2026-11-05"></fieldset>
+    </div>
+    <fieldset><label for="p-desc">설명 · Description <span class="hint">선택 · optional</span></label>
+      <textarea id="p-desc" style="min-height:70px;font-family:inherit;font-size:inherit"></textarea></fieldset>
+    <fieldset>
+      <label for="p-links">첫 영상 링크 · First video links
+        <span class="hint">한 줄에 하나. 링크 뒤 <code>|</code> 로 날짜·제목·썸네일. One per line; add <code>|</code> date, title, thumbnail.</span></label>
+      <textarea id="p-links" placeholder="https://youtu.be/abc123def45"></textarea>
+      <ul class="checks" id="p-checks"></ul>
+    </fieldset>
+  </section>
+
+  <details><summary>이슈 내용 미리 보기 · Preview issue</summary><pre id="preview"></pre></details>
+</main>
+
+<div class="bar"><div class="bar-inner">
+  <span class="status" id="status"></span>
+  <button class="secondary" id="copy">본문 복사 · Copy</button>
+  <button class="primary" id="create" disabled>GitHub 이슈 만들기 · Create issue</button>
+</div></div>
+
+<script src="data/add-form.js"></script>
+<script>
+const F = ADD_FORM, L = F.labels;
+const $ = (id) => document.getElementById(id);
+const repo = new URLSearchParams(location.search).get("repo")
+  || (location.hostname.endsWith(".github.io") ? location.hostname.split(".")[0] + "/" + location.pathname.split("/")[1] : "");
+const MAX_URL = 7000;  // GitHub rejects very long URLs; longer issues are copied and pasted instead
+const norm = (s) => s.normalize("NFKC").toLowerCase().replace(/[\s\p{P}\p{S}_]+/gu, "");
+const re = Object.fromEntries(Object.entries(F.patterns).map(([k, p]) => [k, new RegExp(p)]));
+const dateRe = new RegExp("^(?:" + F.patterns.date + ")$");
+const allIds = new Set(F.videoIds);
+let mode = "video", target = null;
+
+function fill(select, options) {
+  select.replaceChildren(...options.map((o) => Object.assign(document.createElement("option"), { value: o, textContent: o })));
+}
+fill($("v-member"), F.memberOptions);
+fill($("v-era"), F.eraOptions);
+fill($("p-kind"), F.kindOptions);
+$("verticalLabel").textContent = F.vertical;
+
+// ---------- tabs ----------
+for (const [tab, name] of [["tab-video", "video"], ["tab-playlist", "playlist"]]) {
+  $(tab).onclick = () => {
+    mode = name;
+    $("tab-video").setAttribute("aria-selected", name === "video");
+    $("tab-playlist").setAttribute("aria-selected", name === "playlist");
+    $("pane-video").hidden = name !== "video";
+    $("pane-playlist").hidden = name !== "playlist";
+    update();
+  };
+}
+
+// ---------- playlist search ----------
+function search() {
+  const words = $("q").value.split(/\s+/).map(norm).filter(Boolean);
+  const hits = words.length ? F.targets.filter((t) => words.every((w) => norm(t.label).includes(w))).slice(0, 50) : [];
+  $("results").replaceChildren(...hits.map((t) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.textContent = t.label.replace(/ \([^()]+\)$/, "");
+    b.append(Object.assign(document.createElement("span"), { className: "id", textContent: t.id }));
+    b.onclick = () => pick(t);
+    const li = document.createElement("li");
+    li.append(b);
+    return li;
+  }));
+}
+function pick(t) {
+  target = t;
+  $("pickedLabel").textContent = t.label.replace(/ \([^()]+\)$/, "");
+  $("pickedId").textContent = t.id;
+  $("pickedBox").hidden = !t;
+  $("searchBox").hidden = !!t;
+  $("eraBox").hidden = !t || t.id !== F.standalone;
+  update();
+}
+$("q").addEventListener("input", search);
+$("unpick").onclick = () => { target = null; $("pickedBox").hidden = true; $("searchBox").hidden = false; $("eraBox").hidden = true; $("q").focus(); update(); };
+
+// ---------- link checks (advisory; the bot re-checks everything) ----------
+function realDate(s) {
+  const m = s.trim().match(dateRe);
+  if (!m) return null;
+  const [y, mo, d] = [+m[1], +m[2], +m[3]], dt = new Date(Date.UTC(y, mo - 1, d));
+  return dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d ? dt.toISOString().slice(0, 10) : null;
+}
+function identify(link) {
+  let m;
+  if ((m = link.match(re.youtube)) || /^[A-Za-z0-9_-]{11}$/.test(link)) return { source: "youtube", id: m ? m[1] : link };
+  if (/v[mt]\.tiktok\.com/.test(link)) return { source: "tiktok", id: null };
+  if ((m = link.match(re.tiktok))) return { source: "tiktok", id: m[1] };
+  if ((m = link.match(re.wavve))) return { source: "wavve", id: "wv-" + m[1].replace(/\.\d+$/, "") };
+  if ((m = link.match(re.tving))) return { source: "tving", id: "tv-" + m[1] };
+  if ((m = link.match(re.netflix))) return { source: "netflix", id: "nf-" + m[2] };
+  return null;
+}
+function checkLinks(text, { allowed, inTarget, standaloneTarget, formTitle }) {
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const seen = new Set();
+  return lines.map((line) => {
+    const parts = line.split("|").map((p) => p.trim());
+    const head = parts[0].split(/\s+/), link = head[0];
+    const extras = [head.slice(1).join(" "), ...parts.slice(1)].filter(Boolean);
+    const out = { line, level: "ok", notes: [] };
+    const bad = (ko, en) => { out.level = "err"; out.notes.push(`${ko} · ${en}`); };
+    const warn = (ko, en) => { if (out.level === "ok") out.level = "warn"; out.notes.push(`${ko} · ${en}`); };
+    const v = identify(link);
+    if (!v) { bad("지원하지 않는 링크", "unsupported link"); return out; }
+    const name = F.sourceNames[v.source];
+    let date = "", title = "", thumb = "";
+    for (const x of extras) {
+      if (dateRe.test(x)) { date = realDate(x); if (!date) bad(`없는 날짜: ${x}`, `invalid date: ${x}`); }
+      else if (/^https?:\/\//.test(x)) thumb = x;
+      else title = x;
+    }
+    out.head = `${name}${v.id ? " · " + v.id : ""}${date ? " · " + date : ""}${title ? " · " + title : ""}`;
+    if (!allowed.includes(v.source)) bad(`${name} 영상은 이 재생목록에 넣을 수 없음`, `${name} cannot go into this playlist`);
+    if (v.id && seen.has(v.id)) bad("같은 영상이 두 번", "listed twice");
+    if (v.id) seen.add(v.id);
+    if (v.id && inTarget.has(v.id)) bad(standaloneTarget ? "이미 등록된 틱톡" : "이미 이 재생목록에 있음",
+                                        standaloneTarget ? "TikTok already listed" : "already in this playlist");
+    const existing = v.id && allIds.has(v.id);
+    if (existing) warn("이미 있는 영상 — 기존 제목·정보를 그대로 씀", "existing video — its stored title and details are reused");
+    else {
+      if (F.needsTitle.includes(v.source) && !title && !formTitle) bad("제목 필요 ( | 제목 )", "title required ( | title )");
+      if (F.needsThumb.includes(v.source) && !thumb) bad("썸네일 필요 (이미지나 유튜브 링크)", "thumbnail required (image or YouTube link)");
+      if (v.source === "tving" && !thumb) warn("썸네일은 자동으로 가져옴", "thumbnail fetched automatically");
+      if (v.source === "youtube" && !title) out.notes.push("제목은 유튜브에서 자동 · title from YouTube");
+      if (!v.id) warn("짧은 틱톡 링크 — 봇이 확인", "short TikTok link — the bot resolves it");
+    }
+    return out;
+  });
+}
+function showChecks(list, results) {
+  list.replaceChildren(...results.map((r) => {
+    const li = document.createElement("li");
+    li.className = r.level;
+    li.append(Object.assign(document.createElement("b"), { textContent: r.head || r.line }));
+    for (const n of r.notes) li.append(Object.assign(document.createElement("span"), { className: "msg", textContent: n }));
+    return li;
+  }));
+}
+
+// ---------- issue body (same layout as the GitHub issue form) ----------
+const section = (label, value) => `### ${label}\n\n${(value || "").trim() || F.noResponse}\n`;
+function build() {
+  const problems = [];
+  let title, body, results;
+  if (mode === "video") {
+    if (!target) problems.push("재생목록을 고르세요 · pick a playlist");
+    const links = $("v-links").value, count = links.split("\n").filter((l) => l.trim()).length;
+    if (!count) problems.push("링크를 넣으세요 · add a link");
+    if ($("v-title").value.trim() && count > 1) problems.push("영상이 여러 개면 제목 칸은 비우기 · leave Title blank for several videos");
+    const kind = target ? (target.id === F.standalone ? F.standalone : target.kind === F.series ? F.series : "playlist") : "playlist";
+    results = checkLinks(links, {
+      allowed: F.allowed[kind], standaloneTarget: kind === F.standalone,
+      inTarget: new Set(target ? target.v.map((i) => F.videoIds[i]) : []),
+      formTitle: count === 1 && $("v-title").value.trim(),
+    });
+    showChecks($("v-checks"), results);
+    const date = $("v-date").value.trim();
+    if (date && !realDate(date)) problems.push("날짜 형식 확인 · check the date");
+    title = F.issueTitle.video + (target ? target.title : "") + (count > 1 ? ` (+${count})` : "");
+    body = [
+      section(L.target, target && target.label), section(L.links, links), section(L.date, date),
+      section(L.title, $("v-title").value), section(L.channel, $("v-channel").value),
+      section(L.member, $("v-member").value),
+      section(L.era, target && target.id === F.standalone ? $("v-era").value : ""),
+      `### ${L.options}\n\n- [${$("v-vertical").checked ? "x" : " "}] ${F.vertical}\n`,
+    ].join("\n");
+  } else {
+    const links = $("p-links").value;
+    if (!$("p-title").value.trim()) problems.push("재생목록 제목을 넣으세요 · enter a playlist title");
+    if (!links.trim()) problems.push("링크를 넣으세요 · add a link");
+    results = checkLinks(links, { allowed: F.allowed.playlist, standaloneTarget: false, inTarget: new Set(), formTitle: "" });
+    showChecks($("p-checks"), results);
+    const date = $("p-date").value.trim();
+    if (date && !realDate(date)) problems.push("날짜 형식 확인 · check the date");
+    title = F.issueTitle.playlist + $("p-title").value.trim();
+    body = [
+      section(L.kind, $("p-kind").value), section(L.newTitle, $("p-title").value),
+      section(L.channel, $("p-channel").value), section(L.desc, $("p-desc").value),
+      section(L.links, links), section(L.date, date),
+    ].join("\n");
   }
-  q.addEventListener("input", render);
-  render();
-  if (!repo) count.textContent += " — 저장소를 알 수 없습니다 · unknown repository (add ?repo=owner/name)";
+  const errors = results.filter((r) => r.level === "err").length;
+  if (errors) problems.push(`링크 ${errors}개 확인 필요 · ${errors} link(s) need fixing`);
+  return { title, body, problems };
+}
+const issueUrl = (params) => `https://github.com/${repo}/issues/new?` + new URLSearchParams(params);
+
+function update() {
+  const { title, body, problems } = build();
+  $("preview").textContent = `# ${title}\n\n${body}`;
+  const url = issueUrl({ title, body });
+  const tooLong = url.length > MAX_URL;
+  if (!repo) problems.unshift("저장소를 알 수 없음 (?repo=owner/name) · unknown repository");
+  $("create").disabled = problems.length > 0;
+  $("create").textContent = tooLong ? "복사하고 이슈 열기 · Copy & open issue" : "GitHub 이슈 만들기 · Create issue";
+  $("status").className = "status" + (problems.length ? " err" : "");
+  $("status").textContent = problems.length ? problems.join(" / ")
+    : tooLong ? "내용이 길어서 복사 후 붙여 넣기 · Long issue: it is copied, paste it into the body"
+    : "준비 완료 · Ready";
+  $("create").onclick = async () => {
+    if (!tooLong) return window.open(url, "_blank", "noopener");
+    await copy(body);
+    window.open(issueUrl({ title }), "_blank", "noopener");
+  };
+}
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); $("status").textContent = "복사됨 · Copied"; }
+  catch { $("status").textContent = "복사 실패 — 미리 보기에서 직접 복사 · Copy failed — copy from the preview"; }
+}
+$("copy").onclick = () => copy(build().body);
+document.querySelectorAll("input, textarea, select").forEach((el) => el.addEventListener("input", update));
+document.querySelectorAll("select, input[type=checkbox]").forEach((el) => el.addEventListener("change", update));
+update();
 </script>
 </body>
 </html>

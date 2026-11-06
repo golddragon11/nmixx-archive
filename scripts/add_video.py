@@ -94,6 +94,48 @@ def targets(playlists):
     return [(p["id"], option_label(p)) for p in playlists] + [(STANDALONE, standalone_label())]
 
 
+def member_options(members):
+    return [NONE_OPTION] + [f"{ko} ({code})" for code, ko in members.items() if code != "NMIXX"]
+
+
+def era_options(albums):
+    return [AUTO_OPTION] + [a["name"] for a in reversed(albums)] + [nd.PRE_DEBUT]
+
+
+def kind_options():
+    return [f"{KIND_LABELS[k][0]} · {KIND_LABELS[k][1]} ({k})" for k in NEW_PLAYLIST_KINDS]
+
+
+def allowed_sources(kind):
+    return {nd.SERIES: {"youtube", "tiktok"}, STANDALONE: {"tiktok"}}.get(kind, {"youtube", *nd.SOURCE_LABELS})
+
+
+def form_spec(data):
+    """Everything add.html needs to build an issue body this script accepts."""
+    albums, members, videos, playlists = data
+    ids = list(videos)
+    index = {vid: n for n, vid in enumerate(ids)}
+    tgs = [{"id": p["id"], "label": option_label(p), "kind": p["kind"], "title": p["title"],
+            "v": [index[v] for v in p["videos"]]} for p in playlists]
+    tgs.append({"id": STANDALONE, "label": standalone_label(), "kind": STANDALONE, "title": "틱톡 · TikTok",
+                "v": [index[vid] for vid, v in videos.items() if v["source"] == "tiktok" and "era" in v]})
+    return {
+        "labels": {"target": F_TARGET, "links": F_LINKS, "date": F_DATE, "title": F_TITLE,
+                   "channel": F_CHANNEL, "member": F_MEMBER, "era": F_ERA, "options": F_OPTIONS,
+                   "kind": F_KIND, "newTitle": F_NEW_TITLE, "desc": F_DESC},
+        "vertical": VERTICAL, "noResponse": NO_RESPONSE[0],
+        "memberOptions": member_options(members), "eraOptions": era_options(albums), "kindOptions": kind_options(),
+        "issueTitle": {"video": "[새 영상] ", "playlist": "[새 재생목록] "},
+        "standalone": STANDALONE, "series": nd.SERIES,
+        "allowed": {k: sorted(allowed_sources(k)) for k in (nd.SERIES, STANDALONE, "playlist")},
+        "needsTitle": ["tiktok", *nd.SOURCE_LABELS], "needsThumb": ["wavve", "netflix"],
+        "sourceNames": SOURCE_NAMES,
+        "patterns": {"youtube": YOUTUBE_ID.pattern, "tiktok": TIKTOK_ID.pattern, "wavve": WAVVE_ID.pattern,
+                     "tving": TVING_ID.pattern, "netflix": NETFLIX_ID.pattern, "date": DATE.pattern},
+        "videoIds": ids, "targets": tgs,
+    }
+
+
 def normalize(text):
     return re.sub(r"[\s\W_]+", "", unicodedata.normalize("NFKC", text).lower())
 
@@ -178,8 +220,8 @@ def sync_form(data=None):
     search = search_page_url()
     search_ko = f" 목록에서 찾기: {search}" if search else ""
     search_en = f" Search the list: {search}" if search else ""
-    member_opts = [NONE_OPTION] + [f"{ko} ({code})" for code, ko in members.items() if code != "NMIXX"]
-    era_opts = [AUTO_OPTION] + [a["name"] for a in reversed(albums)] + [nd.PRE_DEBUT]
+    member_opts = member_options(members)
+    era_opts = era_options(albums)
 
     video = header(
         "새 영상 추가 / Add videos",
@@ -205,7 +247,7 @@ def sync_form(data=None):
               f"      label: {json.dumps(F_OPTIONS, ensure_ascii=False)}", "      options:",
               f"        - label: {json.dumps(VERTICAL, ensure_ascii=False)}"]
 
-    kinds = [f"{KIND_LABELS[k][0]} · {KIND_LABELS[k][1]} ({k})" for k in NEW_PLAYLIST_KINDS]
+    kinds = kind_options()
     playlist = header(
         "새 재생목록 추가 / New playlist",
         "새 재생목록을 만들고 영상을 넣습니다 / Create a playlist with its first videos",
@@ -409,7 +451,7 @@ def add_videos(form, data):
     era_choice = form.get(F_ERA, "")
 
     kind = playlist["kind"] if playlist else STANDALONE
-    allowed = {nd.SERIES: {"youtube", "tiktok"}, STANDALONE: {"tiktok"}}.get(kind, {"youtube", *nd.SOURCE_LABELS})
+    allowed = allowed_sources(kind)
     channel = (playlist or {}).get("channel") or IMPLIED_CHANNEL.get(kind, "")
     added = []
     for item in items:
@@ -489,7 +531,7 @@ def add_playlist(form, data):
     summary = [f"✅ 새 재생목록 **{option_label(p)}** 을 만들고 영상 {len(items)}개를 넣었습니다. / "
                f"Created with {len(items)} videos.", ""]
     summary += [video_line(i, videos[i]) for i in p["videos"]]
-    summary += ["", "'새 영상 추가' 양식의 목록에도 추가했습니다. / Added to the 'Add videos' form."]
+    summary += ["", "사이트가 갱신되면 검색 페이지(add.html)에도 나타납니다. / It appears on the search page (add.html) once the site updates."]
     return f"새 재생목록 추가: {title} (영상 {len(items)}개)", "\n".join(summary)
 
 

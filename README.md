@@ -4,7 +4,7 @@ Static site published to GitHub Pages by a GitHub Actions build.
 
 - `index.html` — page layout, styles and app code
 - `data/` — albums, playlists and videos as JSON (format: [docs/DATA_REDESIGN.md](docs/DATA_REDESIGN.md))
-- `add.html` — playlist search that opens the "add videos" form
+- `add.html` — fill-in page for adding videos or playlists; opens a ready-to-create GitHub issue
 - `scripts/` — build, validation, issue-form and upstream-import tools
 
 ## 영상 추가하기 / Adding videos
@@ -12,12 +12,15 @@ Static site published to GitHub Pages by a GitHub Actions build.
 코드를 직접 고칠 필요 없이 GitHub 웹사이트에서 추가할 수 있습니다. 휴대폰에서도 됩니다.
 No code editing needed — everything happens on github.com, also from a phone.
 
-1. **사이트의 `/add.html`** 에서 재생목록을 검색해 고르거나, **Issues → New issue → 새 영상 추가** 를 누릅니다.
-   Open **`/add.html`** on the site and pick a playlist, or go to **Issues → New issue → Add videos**.
-2. **재생목록** 칸에 id나 이름 일부를 적습니다 (예: `radio star`, `shorts strange muse`).
-   Type the playlist id or part of its name in **Playlist**.
-3. **링크** 칸에 한 줄에 하나씩 붙여 넣습니다. 링크 뒤에 `|` 로 날짜·제목·썸네일을 붙일 수 있습니다.
-   Paste one link per line; after a link you can add `|` date, title, thumbnail.
+1. **사이트의 `/add.html`** 을 엽니다 (추천). 재생목록 검색, 링크 입력, 옵션을 모두 그 페이지에서 하고,
+   링크마다 문제가 없는지 바로 보여 줍니다. **GitHub 이슈 만들기** 를 누르면 내용이 채워진 이슈가 열리니 **Create** 만 누르세요.
+   Open **`/add.html`** on the site (recommended): search the playlist, paste links and set options there; each
+   link is checked as you type. **Create issue** opens a filled-in GitHub issue — just press **Create**.
+   (GitHub의 **Issues → New issue → 새 영상 추가** 양식을 직접 써도 됩니다. The GitHub form works too.)
+2. **재생목록**: id나 이름 일부로 검색합니다 (예: `radio star`, `shorts strange muse`).
+   **Playlist**: search by id or part of the name.
+3. **링크**: 한 줄에 하나씩. 링크 뒤에 `|` 로 날짜·제목·썸네일을 붙일 수 있습니다.
+   **Links**: one per line; after a link you can add `|` date, title, thumbnail.
 
    ```
    https://youtu.be/abc123def45
@@ -40,7 +43,7 @@ No code editing needed — everything happens on github.com, also from a phone.
 
 ## 새 재생목록 만들기 / New playlists
 
-**Issues → New issue → 새 재생목록 추가 / New playlist**: 종류 (웹예능 출연, 방송, NMIXX Original,
+`add.html` 의 **새 재생목록** 탭, 또는 **Issues → New issue → 새 재생목록 추가 / New playlist**: 종류 (웹예능 출연, 방송, NMIXX Original,
 라이브, 투어·콘서트), 제목, 첫 영상 링크를 넣습니다. Pick a kind (web show, TV, NMIXX Original, live,
 tour), a title and the first links. 앨범 활동별 재생목록 (음악방송·MV·쇼츠·MIXX 스페셜) 은 이 양식으로
 만들 수 없습니다. Album-era playlists (music shows, MV, Shorts, specials) cannot be created this way.
@@ -51,7 +54,7 @@ tour), a title and the first links. 앨범 활동별 재생목록 (음악방송�
 
 ```sh
 python3 scripts/validate.py                 # check data/
-python3 scripts/build.py                    # write data/bundle.js and data/targets.js (gitignored)
+python3 scripts/build.py                    # write data/bundle.js and data/add-form.js (gitignored)
 python3 -m http.server                      # preview at http://localhost:8000
 python3 scripts/add_video.py sync-form      # regenerate the issue forms
 ```
@@ -70,7 +73,9 @@ its id in `data/playlists/order.json`. Then run `validate.py`. Field reference:
 | `sync-form.yml` | changes to albums, members or the form script | regenerate `.github/ISSUE_TEMPLATE/` |
 
 One-time setup on a new repo or fork: **Settings → General → Features → Issues** on,
-**Settings → Pages → Source: GitHub Actions**, and enable workflows in the **Actions** tab.
+**Settings → Pages → Source: GitHub Actions** (before the first push — a branch-based publish that is
+already queued can finish after ours and replace it; re-run 사이트 배포 if that happens), and enable
+workflows in the **Actions** tab.
 
 ### Syncing from upstream
 
